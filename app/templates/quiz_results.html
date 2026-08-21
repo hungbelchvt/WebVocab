@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Quiz Results - Vocab App{% endblock %}
+{% block title %}Kết quả bài Quiz - WebVocab{% endblock %}
 
 {% block content %}
 <div style="max-width: 800px; margin: 0 auto; padding-top: 20px;">
     
     <div style="text-align: center; margin-bottom: 30px;">
         <i class="fa-solid fa-trophy" style="font-size: 3rem; color: #ffd700; margin-bottom: 10px;"></i>
-        <h2 style="margin: 0; color: #333;">Quiz Complete!</h2>
-        <p style="font-size: 1.1rem; color: #04AA6D; font-weight: bold; margin-top: 5px;">+{{ data.xp }} XP Earned</p>
-        <p style="color: #666;">Review your answers below.</p>
+        <h2 style="margin: 0; color: #333;">Hoàn thành bài Quiz!</h2>
+        <p style="font-size: 1.1rem; color: #04AA6D; font-weight: bold; margin-top: 5px;">+{{ data.xp }} Điểm XP nhận được</p>
+        <p style="color: #666;">Xem lại chi tiết các câu trả lời bên dưới.</p>
     </div>
 
     <div id="review-container">
@@ -17,13 +17,13 @@
         <div class="w3-card review-card" id="review-{{ loop.index0 }}" style="display: none; padding: 30px; border-top: 4px solid {% if item.is_correct %}#04AA6D{% else %}#f44336{% endif %};">
 
             <div style="text-align: center; margin-bottom: 25px;">
-                <span style="color: #888; font-size: 0.9rem; font-weight: bold; text-transform: uppercase;">Question {{ loop.index }} of {{ data.details|length }}</span>
+                <span style="color: #888; font-size: 0.9rem; font-weight: bold; text-transform: uppercase;">Câu hỏi {{ loop.index }} / {{ data.details|length }}</span>
                 <h2 style="margin: 10px 0 0 0; font-size: 2rem;">{{ item.term }}</h2>
 
                 {% if item.is_correct %}
-                    <span style="display: inline-block; margin-top: 10px; background: #e8f5e9; color: #04AA6D; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9rem;"><i class="fa-solid fa-check"></i> Correct</span>
+                    <span style="display: inline-block; margin-top: 10px; background: #e8f5e9; color: #04AA6D; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9rem;"><i class="fa-solid fa-check"></i> Chính xác</span>
                 {% else %}
-                    <span style="display: inline-block; margin-top: 10px; background: #ffebee; color: #f44336; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9rem;"><i class="fa-solid fa-xmark"></i> Incorrect</span>
+                    <span style="display: inline-block; margin-top: 10px; background: #ffebee; color: #f44336; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9rem;"><i class="fa-solid fa-xmark"></i> Chưa chính xác</span>
                 {% endif %}
             </div>
 
@@ -62,15 +62,15 @@
     </div>
 
     <div style="display: flex; justify-content: center; gap: 20px; margin-top: 20px;">
-        <button onclick="changeCard(-1)" id="btn-prev" class="btn" style="background: #e0e0e0; color: #333; padding: 10px 25px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;"><i class="fa-solid fa-arrow-left"></i> Previous</button>
-        <button onclick="changeCard(1)" id="btn-next" class="btn" style="background: #e0e0e0; color: #333; padding: 10px 25px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Next <i class="fa-solid fa-arrow-right"></i></button>
+        <button onclick="changeCard(-1)" id="btn-prev" class="btn" style="background: #e0e0e0; color: #333; padding: 10px 25px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;"><i class="fa-solid fa-arrow-left"></i> Câu trước</button>
+        <button onclick="changeCard(1)" id="btn-next" class="btn" style="background: #e0e0e0; color: #333; padding: 10px 25px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Câu tiếp theo <i class="fa-solid fa-arrow-right"></i></button>
     </div>
 
     <div style="text-align: center; margin-top: 30px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
         <a href="{{ url_for('ai_ui.learning_analysis_page') }}" class="btn" style="background: #2196f3; color: white; padding: 12px 24px; border-radius: 5px; text-decoration: none; font-weight: bold; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-chart-pie"></i> Xem phân tích AI
         </a>
-        <a href="{{ url_for('dashboard') }}" class="btn" style="background: #04AA6D; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold; font-size: 1.05rem;">Return to Dashboard</a>
+        <a href="{{ url_for('dashboard') }}" class="btn" style="background: #04AA6D; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold; font-size: 1.05rem;">Về Bảng điều khiển</a>
     </div>
 
 </div>
@@ -103,4 +103,4 @@
     // Initialize first card
     showReviewCard(0);
 </script>
-{% endblock %}
+{% endblock %}

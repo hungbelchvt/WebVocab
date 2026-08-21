@@ -259,9 +259,11 @@ class TestPhase4(unittest.TestCase):
         self._login_client()
         resp = self.client.get('/ai/learning-analysis')
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'AI Learning Analysis', resp.data)
-        self.assertIn(b'Gemini 3.6 Flash', resp.data)
+        self.assertIn(b'Ph\xc3\xa2n t\xc3\xadch H\xe1\xbb\x8dc t\xe1\xba\xadp AI', resp.data)
+        self.assertIn(b'ai-badge', resp.data)
+        self.assertNotIn(b'Gemini 3.6 Flash', resp.data)
         self.assertIn(b'ai_analysis.js', resp.data)
+
 
     def test_analysis_page_requires_auth(self):
         """Test unauthenticated access redirects to login."""

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Vocab App{% endblock %}</title>
+    <title>{% block title %}WebVocab - Ứng dụng Học Từ Vựng Thông Minh{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -11,25 +11,25 @@
 
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <i class="fa-solid fa-layer-group"></i> VocabApp
+            <i class="fa-solid fa-layer-group"></i> WebVocab
         </div>
 
         <ul class="sidebar-nav">
-            <li><a href="{{ url_for('flashcards') }}"><i class="fa-solid fa-clone"></i> Flashcards Library</a></li>
+            <li><a href="{{ url_for('flashcards') }}"><i class="fa-solid fa-clone"></i> Thư viện Chủ đề</a></li>
 
             {% if current_user.is_authenticated %}
-                <li><a href="{{ url_for('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
-                <li><a href="{{ url_for('study') }}"><i class="fa-solid fa-brain"></i> Smart Study</a></li>
-                <li><a href="{{ url_for('quiz_setup') }}"><i class="fa-solid fa-gamepad"></i> Quizzes</a></li>
-                <li><a href="{{ url_for('ai_ui.quiz_page') }}"><i class="fa-solid fa-graduation-cap" style="color: #ff9800;"></i> AI Quiz</a></li>
-                <li><a href="{{ url_for('progress') }}"><i class="fa-solid fa-chart-line"></i> My Progress</a></li>
-                <li><a href="{{ url_for('ai_ui.vocabulary_page') }}"><i class="fa-solid fa-wand-magic-sparkles" style="color: #04AA6D;"></i> AI Vocabulary</a></li>
-                <li><a href="{{ url_for('ai_ui.learning_analysis_page') }}"><i class="fa-solid fa-chart-pie" style="color: #2196f3;"></i> AI Analysis</a></li>
+                <li><a href="{{ url_for('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Bảng điều khiển</a></li>
+                <li><a href="{{ url_for('study') }}"><i class="fa-solid fa-brain"></i> Học thông minh</a></li>
+                <li><a href="{{ url_for('quiz_setup') }}"><i class="fa-solid fa-gamepad"></i> Luyện tập Quiz</a></li>
+                <li><a href="{{ url_for('ai_ui.quiz_page') }}"><i class="fa-solid fa-graduation-cap" style="color: #ff9800;"></i> Quiz AI</a></li>
+                <li><a href="{{ url_for('progress') }}"><i class="fa-solid fa-chart-line"></i> Tiến độ học tập</a></li>
+                <li><a href="{{ url_for('ai_ui.vocabulary_page') }}"><i class="fa-solid fa-wand-magic-sparkles" style="color: #04AA6D;"></i> Trợ lý từ vựng AI</a></li>
+                <li><a href="{{ url_for('ai_ui.learning_analysis_page') }}"><i class="fa-solid fa-chart-pie" style="color: #2196f3;"></i> Phân tích AI</a></li>
             {% endif %}
             {% if current_user.is_admin %}
                 <li>
                     <a href="{{ url_for('admin_panel') }}" style="color: #f44336; font-weight: bold;">
-                        <i class="fa-solid fa-shield-halved" style="color: #f44336;"></i> Admin Panel
+                        <i class="fa-solid fa-shield-halved" style="color: #f44336;"></i> Quản trị hệ thống
                     </a>
                 </li>
             {% endif %}
@@ -37,10 +37,10 @@
 
         <div class="sidebar-bottom">
             {% if current_user.is_authenticated %}
-                <a href="{{ url_for('logout') }}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a>
+                <a href="{{ url_for('logout') }}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Đăng xuất</a>
             {% else %}
-                <a href="{{ url_for('login') }}"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
-                <a href="{{ url_for('register') }}"><i class="fa-solid fa-user-plus"></i> Sign Up</a>
+                <a href="{{ url_for('login') }}"><i class="fa-solid fa-right-to-bracket"></i> Đăng nhập</a>
+                <a href="{{ url_for('register') }}"><i class="fa-solid fa-user-plus"></i> Đăng ký</a>
             {% endif %}
         </div>
     </aside>
@@ -50,8 +50,8 @@
         <header class="topbar">
             {% if current_user.is_authenticated %}
                 <div class="topbar-stats">
-                    <span class="stat-item">Level {{ current_user.level }}</span>
-                    <span class="stat-item">{{ current_user.xp }} Total XP</span>
+                    <span class="stat-item">Cấp độ {{ current_user.level }}</span>
+                    <span class="stat-item">{{ current_user.xp }} Điểm XP</span>
                 </div>
                 <div class="user-profile">
                     <div class="avatar">{{ current_user.username[0] | upper }}</div>
@@ -77,4 +77,4 @@
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
-</html>
+</html>

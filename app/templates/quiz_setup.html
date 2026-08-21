@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Quiz Setup - Vocab App{% endblock %}
+{% block title %}Cài đặt bài Quiz - WebVocab{% endblock %}
 
 {% block content %}
 <div class="w3-card" style="max-width: 600px; margin: 40px auto; padding: 30px;">
-    <h2 style="text-align: center; margin-bottom: 30px;">Quiz Settings</h2>
+    <h2 style="text-align: center; margin-bottom: 30px;">Cài đặt bài kiểm tra trắc nghiệm</h2>
     <form action="{{ url_for('quiz_run') }}" method="POST">
 
         <div style="margin-bottom: 25px; text-align: left;">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Topics:</label>
+            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Chọn chủ đề ôn tập:</label>
             <div class="checkbox-group" style="background: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ccc; max-height: 180px; overflow-y: auto;">
 
                 <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
                     <input type="checkbox" id="topic_all" name="topic_ids" value="all" checked class="topic-checkbox">
-                    <label for="topic_all" style="margin-left: 8px; font-weight: bold;">All Enrolled Topics</label>
+                    <label for="topic_all" style="margin-left: 8px; font-weight: bold;">Tất cả các chủ đề đang học</label>
                 </div>
 
                 {% for topic in topics %}
@@ -26,15 +26,15 @@
         </div>
 
         <div style="margin-bottom: 30px; text-align: left;">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Number of Questions:</label>
+            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Số lượng câu hỏi:</label>
             <select name="question_count" class="form-control" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
-                <option value="10">10 Questions</option>
-                <option value="20">20 Questions</option>
-                <option value="30">30 Questions</option>
+                <option value="10">10 Câu hỏi</option>
+                <option value="20">20 Câu hỏi</option>
+                <option value="30">30 Câu hỏi</option>
             </select>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1.1rem; background-color: #04AA6D; border: none; color: white; border-radius: 5px; cursor: pointer;">Start Quiz</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1.1rem; background-color: #04AA6D; border: none; color: white; border-radius: 5px; cursor: pointer; font-weight: bold;">Bắt đầu làm bài</button>
     </form>
 </div>
 
@@ -56,4 +56,4 @@
         });
     });
 </script>
-{% endblock %}
+{% endblock %}

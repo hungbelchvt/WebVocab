@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}AI Quiz Generator - Vocab App{% endblock %}
+{% block title %}Quiz AI - WebVocab{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_styles.css') }}">
 
 <div class="ai-header">
     <h1>
-        <i class="fa-solid fa-graduation-cap" style="color: #ff9800;"></i> AI Quiz Generator
-        <span class="ai-badge" style="color: #ff9800; border-color: rgba(255, 152, 0, 0.3); background: #fff3e0;">Gemini 3.6 Flash</span>
+        <i class="fa-solid fa-graduation-cap" style="color: #ff9800;"></i> Luyện tập Quiz AI
+        <span class="ai-badge" style="color: #ff9800; border-color: rgba(255, 152, 0, 0.3); background: #fff3e0;">AI</span>
     </h1>
     <p class="ai-subtitle">AI tự động phân tích lịch sử học, độ chính xác và từ vựng yếu của bạn để tạo ra bài trắc nghiệm cá nhân hóa.</p>
 </div>
@@ -20,7 +20,7 @@
     </h3>
 
     <div class="form-group" style="margin-bottom: 20px;">
-        <label class="form-label" for="ai-quiz-topic-select">Chọn danh mục từ vựng:</label>
+        <label class="form-label" for="ai-quiz-topic-select">Chọn chủ đề từ vựng:</label>
         <select id="ai-quiz-topic-select" class="form-control">
             <option value="all">-- Tất cả từ vựng đang học --</option>
         </select>
@@ -37,7 +37,7 @@
     </div>
 
     <button type="button" id="ai-quiz-generate-btn" class="btn-block" style="background: #ff9800; margin-top: 0;">
-        <i class="fa-solid fa-wand-magic-sparkles"></i> Tạo bài Quiz AI cá nhân hóa
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Tạo bài Quiz AI
     </button>
 </div>
 
@@ -45,14 +45,14 @@
 <div id="ai-quiz-loading-state" class="ai-loading-card" style="max-width: 700px; margin: 0 auto;">
     <div class="ai-spinner" style="border-top-color: #ff9800;"></div>
     <p class="ai-loading-text">AI đang tạo bài quiz cá nhân hóa...</p>
-    <p class="ai-loading-subtext">Đang trích xuất từ vựng ưu tiên và tạo câu hỏi ngữ cảnh đa dạng từ Gemini 3.6 Flash</p>
+    <p class="ai-loading-subtext">Đang trích xuất từ vựng ưu tiên và tạo câu hỏi ngữ cảnh thông minh...</p>
 </div>
 
 <!-- Error State -->
 <div id="ai-quiz-error-state" class="ai-error-card" style="max-width: 700px; margin: 0 auto;">
     <div class="ai-error-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
     <h3 class="ai-error-title">Không thể tạo bài Quiz</h3>
-    <p id="ai-quiz-error-msg" class="ai-error-msg">Đã xảy ra lỗi khi kết nối với AI.</p>
+    <p id="ai-quiz-error-msg" class="ai-error-msg">AI đang bận. Vui lòng thử lại sau ít phút.</p>
     <button type="button" id="ai-quiz-retry-btn" class="ai-btn-retry"><i class="fa-solid fa-arrow-left"></i> Quay lại thiết lập</button>
 </div>
 
@@ -102,3 +102,4 @@
 
 <script src="{{ url_for('static', filename='js/ai_quiz.js') }}"></script>
 {% endblock %}
+

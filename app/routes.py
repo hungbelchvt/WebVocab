@@ -7,7 +7,7 @@ from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.forms import RegistrationForm, LoginForm
 from app.forms import TopicForm, WordForm
-from app.models import db, User, Topic, Word, WordProgress
+from app.models import db, User, Topic, Word, WordProgress, SmartStudyReview, QuizAttempt
 from sqlalchemy import func
 from datetime import datetime, timezone
 from functools import wraps
@@ -38,23 +38,23 @@ def register():
 
         # 1. Check if passwords match
         if password != confirm_password:
-            flash('Passwords do not match. Please try again.')
+            flash('Mật khẩu xác nhận không khớp. Vui lòng thử lại.', 'danger')
             return redirect(url_for('register'))
 
         # 2. Check if username is already taken
         user = User.query.filter_by(username=username).first()
         if user:
-            flash('Username already exists. Please choose another one.')
+            flash('Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.', 'warning')
             return redirect(url_for('register'))
 
         # 3. Hash the password and create the user
         hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-        new_user = User(username=username, password_hash=hashed_password)
+        new_user = User(username=username, password_hash=hashed_password, xp=0, level=1, current_streak=0, longest_streak=0)
         db.session.add(new_user)
         db.session.commit()
 
         # 4. Flash success message and redirect to login
-        flash('Account created successfully! Please log in.')
+        flash('Đăng ký tài khoản thành công! Vui lòng đăng nhập.', 'success')
         return redirect(url_for('login'))
 
     return render_template('register.html')
@@ -74,7 +74,7 @@ def login():
             login_user(user)
             return redirect(url_for('dashboard'))
         else:
-            flash('Invalid username or password. Please try again.')
+            flash('Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng thử lại.', 'danger')
 
     return render_template('login.html', form=form)
 
@@ -121,18 +121,36 @@ def dashboard():
     day_labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
     streak_data = [(label, active_days[i]) for i, label in enumerate(day_labels)]
 
-    # 3. Weekly Leaderboard (Monday to Sunday)
-    start_of_week = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=now.weekday())
-
-    leaderboard_data = db.session.query(
+    # 3. Leaderboard #1 — Longest Streak (Top 10)
+    streak_leaderboard = db.session.query(
+        User.id,
         User.username,
-        func.count(WordProgress.id).label('mastered_count')
-    ).join(WordProgress).filter(
-        WordProgress.is_mastered == True,
-        WordProgress.date_mastered >= start_of_week
-    ).group_by(User.username).order_by(func.count(WordProgress.id).desc()).limit(5).all()
+        func.coalesce(User.longest_streak, User.current_streak, 0).label('streak_value')
+    ).order_by(
+        func.coalesce(User.longest_streak, User.current_streak, 0).desc(),
+        User.xp.desc()
+    ).limit(10).all()
 
-    # 4. Find Weakest Topic
+    user_streak_val = max(current_user.longest_streak or 0, current_user.current_streak or 0)
+    user_streak_rank = db.session.query(func.count(User.id)).filter(
+        func.coalesce(User.longest_streak, User.current_streak, 0) > user_streak_val
+    ).scalar() + 1
+
+    # 4. Leaderboard #2 — Highest EXP (Top 10)
+    exp_leaderboard = db.session.query(
+        User.id,
+        User.username,
+        User.xp.label('exp_value')
+    ).order_by(
+        User.xp.desc()
+    ).limit(10).all()
+
+    user_exp_val = current_user.xp or 0
+    user_exp_rank = db.session.query(func.count(User.id)).filter(
+        User.xp > user_exp_val
+    ).scalar() + 1
+
+    # 5. Find Weakest Topic
     weak_progress = WordProgress.query.filter(
         WordProgress.user_id == current_user.id,
         WordProgress.times_tested > 0
@@ -140,11 +158,8 @@ def dashboard():
 
     topic_scores = {}
     for p in weak_progress:
-        # Check for topic_id instead of the relationship object
         if p.word and p.word.topic_id:
-            # Fetch the actual Topic object manually
             topic = db.session.get(Topic, p.word.topic_id)
-
             if topic:
                 acc = p.times_correct / p.times_tested
                 t_id = topic.id
@@ -155,7 +170,7 @@ def dashboard():
 
     weakest_topic = None
     if topic_scores:
-        lowest_acc = 1.1  # Impossible baseline
+        lowest_acc = 1.1
         for t_id, data in topic_scores.items():
             avg = data['total_acc'] / data['count']
             if avg < lowest_acc:
@@ -167,8 +182,75 @@ def dashboard():
                            total_learning=total_learning,
                            mastered_count=mastered_count,
                            streak_data=streak_data,
-                           leaderboard=leaderboard_data,
+                           streak_leaderboard=streak_leaderboard,
+                           exp_leaderboard=exp_leaderboard,
+                           user_streak_rank=user_streak_rank,
+                           user_exp_rank=user_exp_rank,
+                           user_streak_val=user_streak_val,
                            weakest_topic=weakest_topic)
+
+
+@app.route('/api/leaderboard/streak', methods=['GET'])
+def api_leaderboard_streak():
+    """Returns Top 10 users by longest streak without sensitive private data."""
+    top_users = db.session.query(
+        User.id,
+        User.username,
+        func.coalesce(User.longest_streak, User.current_streak, 0).label('streak_value')
+    ).order_by(
+        func.coalesce(User.longest_streak, User.current_streak, 0).desc(),
+        User.xp.desc()
+    ).limit(10).all()
+
+    results = [
+        {"rank": idx + 1, "username": u.username, "streak": int(u.streak_value)}
+        for idx, u in enumerate(top_users)
+    ]
+
+    user_info = None
+    if current_user.is_authenticated:
+        user_streak_val = max(current_user.longest_streak or 0, current_user.current_streak or 0)
+        user_rank = db.session.query(func.count(User.id)).filter(
+            func.coalesce(User.longest_streak, User.current_streak, 0) > user_streak_val
+        ).scalar() + 1
+        user_info = {
+            "username": current_user.username,
+            "streak": user_streak_val,
+            "rank": user_rank
+        }
+
+    return jsonify({"success": True, "leaderboard": results, "current_user": user_info})
+
+
+@app.route('/api/leaderboard/exp', methods=['GET'])
+def api_leaderboard_exp():
+    """Returns Top 10 users by EXP without sensitive private data."""
+    top_users = db.session.query(
+        User.id,
+        User.username,
+        User.xp.label('exp_value')
+    ).order_by(
+        User.xp.desc()
+    ).limit(10).all()
+
+    results = [
+        {"rank": idx + 1, "username": u.username, "xp": int(u.exp_value)}
+        for idx, u in enumerate(top_users)
+    ]
+
+    user_info = None
+    if current_user.is_authenticated:
+        user_exp_val = current_user.xp or 0
+        user_rank = db.session.query(func.count(User.id)).filter(
+            User.xp > user_exp_val
+        ).scalar() + 1
+        user_info = {
+            "username": current_user.username,
+            "xp": user_exp_val,
+            "rank": user_rank
+        }
+
+    return jsonify({"success": True, "leaderboard": results, "current_user": user_info})
 
 
 @app.route('/study')
@@ -180,13 +262,13 @@ def study():
     due_progress = WordProgress.query.join(Word).filter(
         WordProgress.user_id == current_user.id,
         WordProgress.next_review <= now
-    ).limit(15).all()  # <--- Added limit(15) here
+    ).limit(15).all()
 
     words_data = [{
         'progress_id': progress.id,
         'word_id': progress.word.id,
         'term': progress.word.term,
-        'ipa': progress.word.ipa,  # <--- NEW
+        'ipa': progress.word.ipa,
         'definition': progress.word.definition,
         'example': progress.word.example_sentence,
     } for progress in due_progress]
@@ -198,11 +280,12 @@ def study():
 @login_required
 def update_srs():
     data = request.get_json()
-    # Note: We are now looking for the PROGRESS ID, not just the Word ID
     progress_id = data.get('progress_id')
     rating = data.get('rating')
 
-    progress = WordProgress.query.get_or_404(progress_id)
+    progress = db.session.get(WordProgress, progress_id)
+    if not progress:
+        return jsonify({"error": "Progress record not found"}), 404
 
     if progress.user_id != current_user.id:
         return jsonify({"error": "Unauthorized"}), 403
@@ -211,7 +294,7 @@ def update_srs():
     progress.last_reviewed = now
     progress.times_tested += 1
 
-    # SRS logic remains the same, but updates the Progress record
+    # SRS logic updates the Progress record
     if rating == 'easy':
         progress.next_review = now + timedelta(days=4)
         progress.user_difficulty_rating = 'easy'
@@ -226,6 +309,30 @@ def update_srs():
         progress.next_review = now + timedelta(minutes=10)
         progress.user_difficulty_rating = 'hard'
         current_user.xp += 5
+
+    # 1. Persist Smart Study review history event
+    study_review = SmartStudyReview(
+        user_id=current_user.id,
+        word_id=progress.word_id,
+        topic_id=progress.word.topic_id if progress.word else None,
+        rating=rating,
+        timestamp=now
+    )
+    db.session.add(study_review)
+
+    # 2. Update streak & longest_streak
+    if not current_user.last_active or current_user.current_streak == 0:
+        current_user.current_streak = 1
+    else:
+        delta = now.date() - current_user.last_active.date()
+        if delta.days == 1:
+            current_user.current_streak += 1
+        elif delta.days > 1:
+            current_user.current_streak = 1
+
+    current_user.last_active = now
+    if current_user.current_streak > (current_user.longest_streak or 0):
+        current_user.longest_streak = current_user.current_streak
 
     # Mastery check on the progress record
     if progress.times_tested >= 3 and (progress.times_correct / progress.times_tested) >= 0.8:
@@ -252,41 +359,31 @@ def quiz_setup():
 @app.route('/quiz/run', methods=['POST'])
 @login_required
 def quiz_run():
-    # Use getlist() to grab an array of all checked boxes
     topic_ids = request.form.getlist('topic_ids')
     count = int(request.form.get('question_count', 10))
 
     progress_query = WordProgress.query.filter_by(user_id=current_user.id)
 
-    # If "all" is not in the list, filter by the specific checked topics
     if 'all' not in topic_ids and topic_ids:
-        # Convert string IDs from HTML into integers
         topic_ids_int = [int(t_id) for t_id in topic_ids]
         progress_query = progress_query.join(Word).filter(Word.topic_id.in_(topic_ids_int))
 
     available_progress = progress_query.all()
 
     if not available_progress:
-        flash("You don't have enough words enrolled for the selected topics.")
+        flash("Bạn chưa có đủ từ vựng trong các chủ đề đã chọn để tạo bài quiz.", "warning")
         return redirect(url_for('quiz_setup'))
 
     selected_progress = random.sample(available_progress, min(count, len(available_progress)))
-
-    # We grab all words once to keep the database fast
     all_words = Word.query.all()
 
     quiz_data = []
     for p in selected_progress:
         target_word = p.word
 
-        # --- THE FIX ---
-        # 1. Filter to ONLY include words from the exact same topic (excluding the correct answer)
         same_topic_words = [w for w in all_words if w.topic_id == target_word.topic_id and w.id != target_word.id]
-
-        # 2. Grab up to 3 random wrong choices from that specific filtered list
         wrong_choices = random.sample(same_topic_words, min(3, len(same_topic_words)))
 
-        # 3. Combine them with the correct answer and shuffle
         options = wrong_choices + [target_word]
         random.shuffle(options)
 
@@ -309,25 +406,28 @@ def submit_quiz_batch():
     xp_earned = 0
     now = datetime.now(timezone.utc)
 
-    # --- STREAK LOGIC FIX ---
+    # Streak logic
     if not current_user.last_active or current_user.current_streak == 0:
-        current_user.current_streak = 1  # First day using the app!
+        current_user.current_streak = 1
     else:
         delta = now.date() - current_user.last_active.date()
         if delta.days == 1:
-            current_user.current_streak += 1  # Came back the next day
+            current_user.current_streak += 1
         elif delta.days > 1:
-            current_user.current_streak = 1  # Streak broken, reset to 1
-        # If delta.days == 0, they already got their streak today, do nothing.
+            current_user.current_streak = 1
 
     current_user.last_active = now
+    if current_user.current_streak > (current_user.longest_streak or 0):
+        current_user.longest_streak = current_user.current_streak
+
     detailed_results = []
 
     for item in results:
         progress = db.session.get(WordProgress, item['progress_id'])
         if progress and progress.user_id == current_user.id:
             progress.times_tested += 1
-            if item['is_correct']:
+            is_correct = bool(item.get('is_correct'))
+            if is_correct:
                 progress.times_correct += 1
                 xp_earned += 10
 
@@ -338,6 +438,17 @@ def submit_quiz_batch():
                     xp_earned += 50
 
             detailed_results.append(item)
+
+            # Persist normal Quiz attempt history
+            quiz_attempt = QuizAttempt(
+                user_id=current_user.id,
+                word_id=progress.word_id,
+                topic_id=progress.word.topic_id if progress.word else None,
+                is_correct=is_correct,
+                selected_id=item.get('selected_id'),
+                timestamp=now
+            )
+            db.session.add(quiz_attempt)
 
     current_user.xp += xp_earned
     db.session.commit()
@@ -351,6 +462,7 @@ def submit_quiz_batch():
         "status": "success",
         "redirect_url": url_for('quiz_results_view')
     })
+
 
 @app.route('/flashcards')
 def flashcards():
@@ -395,8 +507,8 @@ def unenroll_topic(topic_id):
         ).delete(synchronize_session=False)
         db.session.commit()
 
-    flash(f'Removed "{topic.name}" from your learning queue.')
-    return redirect(url_for('view_flashcards', topic_id=topic.id))
+        flash(f'Đã xóa chủ đề "{topic.name}" khỏi danh sách học của bạn.', 'info')
+        return redirect(url_for('view_flashcards', topic_id=topic.id))
 
 
 
@@ -409,7 +521,7 @@ def create_topic():
         db.session.add(new_topic)
         db.session.commit()
 
-        flash('Deck created! Now add some words.')
+        flash(f'Đã tạo chủ đề "{new_topic.name}" thành công! Hãy thêm từ vựng mới.', 'success')
         # Immediately redirect them to add words to this new deck
         return redirect(url_for('add_word', topic_id=new_topic.id))
 
@@ -422,7 +534,7 @@ def edit_word(word_id):
 
     # Security Check: Only the creator or an admin can edit
     if word.user_id != current_user.id and not current_user.is_admin:
-        flash("Unauthorized.", "danger")
+        flash("Bạn không có quyền chỉnh sửa từ vựng này.", "danger")
         return redirect(url_for('flashcards'))
 
     topic_id = word.topic_id
@@ -434,7 +546,7 @@ def edit_word(word_id):
     word.example_sentence = request.form.get('example_sentence')
 
     db.session.commit()
-    flash(f'Successfully updated "{word.term}"!', 'success')
+    flash(f'Đã cập nhật thành công từ vựng "{word.term}"!', 'success')
 
     return redirect(url_for('add_word', topic_id=topic_id))
 
@@ -462,7 +574,7 @@ def add_word(topic_id):
         db.session.add(progress)
         db.session.commit()
 
-        flash(f'Added "{new_word.term}" to {topic.name}!')
+        flash(f'Đã thêm thành công từ "{new_word.term}" vào chủ đề "{topic.name}"!', 'success')
         return redirect(url_for('add_word', topic_id=topic.id))
 
     # Fetch existing words to show the user what they've added so far
@@ -531,7 +643,7 @@ def enroll_topic(topic_id):
             db.session.add(progress)
 
     db.session.commit()
-    flash(f'Added {topic.name} to your learning queue!')
+    flash(f'Đã thêm chủ đề "{topic.name}" vào tiến trình học của bạn!', 'success')
     return redirect(url_for('view_flashcards', topic_id=topic.id))
 
 
@@ -542,7 +654,7 @@ def delete_word(word_id):
 
     # ADDED the admin bypass here:
     if word.user_id != current_user.id and not current_user.is_admin:
-        flash("Unauthorized.")
+        flash("Bạn không có quyền xóa từ vựng này.", "danger")
         return redirect(url_for('flashcards'))
 
     topic_id = word.topic_id
@@ -552,6 +664,7 @@ def delete_word(word_id):
     db.session.delete(word)
     db.session.commit()
 
+    flash(f'Đã xóa từ vựng "{word.term}".', 'info')
     return redirect(url_for('add_word', topic_id=topic_id))
 
 @app.route('/delete_topic/<int:topic_id>', methods=['POST'])
@@ -561,7 +674,7 @@ def delete_topic(topic_id):
 
     # ADDED the admin bypass here:
     if topic.user_id != current_user.id and not current_user.is_admin:
-        flash("Unauthorized.")
+        flash("Bạn không có quyền xóa chủ đề này.", "danger")
         return redirect(url_for('flashcards'))
 
     words = Word.query.filter_by(topic_id=topic.id).all()
@@ -572,7 +685,7 @@ def delete_topic(topic_id):
     db.session.delete(topic)
     db.session.commit()
 
-    flash(f'Deck "{topic.name}" has been deleted.')
+    flash(f'Chủ đề "{topic.name}" đã được xóa.', 'info')
     return redirect(url_for('flashcards'))
 
 
@@ -581,7 +694,7 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_admin:
-            flash("You do not have permission to view that page.", "danger")
+            flash("Bạn không có quyền truy cập trang quản trị này.", "danger")
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
 
@@ -603,14 +716,14 @@ def admin_panel():
 def delete_user(user_id):
     user = User.query.get_or_404(user_id)
     if user.id == current_user.id:
-        flash('You cannot delete your own admin account!', 'danger')
+        flash('Bạn không thể xóa tài khoản quản trị viên của chính mình!', 'danger')
         return redirect(url_for('admin_panel'))
 
     # Delete their study progress first to prevent database errors
     WordProgress.query.filter_by(user_id=user.id).delete()
     db.session.delete(user)
     db.session.commit()
-    flash(f'User {user.username} has been deleted.', 'success')
+    flash(f'Người dùng {user.username} đã được xóa thành công.', 'success')
     return redirect(url_for('admin_panel'))
 
 
@@ -620,12 +733,12 @@ def import_csv(topic_id):
     topic = Topic.query.get_or_404(topic_id)
 
     if 'file' not in request.files:
-        flash('No file part', 'danger')
+        flash('Vui lòng chọn tệp tin tải lên.', 'danger')
         return redirect(url_for('add_word', topic_id=topic.id))
 
     file = request.files['file']
     if file.filename == '':
-        flash('No selected file', 'danger')
+        flash('Chưa có tệp tin nào được chọn.', 'danger')
         return redirect(url_for('add_word', topic_id=topic.id))
 
     if file and file.filename.endswith('.csv'):
@@ -656,9 +769,9 @@ def import_csv(topic_id):
                 words_added += 1
 
         db.session.commit()
-        flash(f'Successfully imported {words_added} words into "{topic.name}"!', 'success')
+        flash(f'Đã nhập thành công {words_added} từ vựng vào chủ đề "{topic.name}"!', 'success')
     else:
-        flash('Please upload a valid .csv file.', 'danger')
+        flash('Vui lòng tải lên tệp tin định dạng .csv hợp lệ.', 'danger')
 
     return redirect(url_for('add_word', topic_id=topic.id))
 

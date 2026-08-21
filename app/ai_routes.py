@@ -5,9 +5,11 @@ error handling, and security protection.
 """
 
 import re
+import random
 from flask import Blueprint, jsonify, request, render_template, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import func
+
 from app.models import db, Topic, Word, WordProgress
 from app.services.ai_service import (
     ai_service,
@@ -519,24 +521,49 @@ def ai_quiz():
             candidates[0]
         )
 
-        options = list(q.options) if isinstance(q.options, list) else []
-        # Ensure answer is in options
-        if q.answer not in options:
-            options.append(q.answer)
+        raw_options = list(q.options) if isinstance(q.options, list) else []
+        clean_answer = (q.answer or '').strip()
 
-        # Truncate/Pad to 4 options
-        options = options[:4]
-        while len(options) < 4:
-            options.append("None of the above")
+        # 1. Deduplicate options while preserving order and casing
+        seen = set()
+        cleaned_options = []
+        for opt in raw_options:
+            opt_str = (opt or '').strip()
+            if opt_str and opt_str.lower() not in seen:
+                seen.add(opt_str.lower())
+                cleaned_options.append(opt_str)
 
-        # Find correct index
-        try:
-            correct_index = options.index(q.answer)
-        except ValueError:
-            correct_index = 0
-            options[0] = q.answer
+        # 2. Ensure answer is in options
+        if clean_answer and clean_answer.lower() not in seen:
+            cleaned_options.append(clean_answer)
+            seen.add(clean_answer.lower())
 
-        options_list = [{"id": i, "def": opt} for i, opt in enumerate(options)]
+        # 3. Fallback distractors to ensure at least 4 options if possible
+        fallback_distractors = ["None of the above", "All of the above", "Cannot be determined", "Not applicable"]
+        for fb in fallback_distractors:
+            if len(cleaned_options) >= 4:
+                break
+            if fb.lower() not in seen:
+                cleaned_options.append(fb)
+                seen.add(fb.lower())
+
+        cleaned_options = cleaned_options[:4]
+
+        # Ensure clean_answer is strictly in cleaned_options
+        if clean_answer not in cleaned_options:
+            match_idx = next((i for i, o in enumerate(cleaned_options) if o.lower() == clean_answer.lower()), None)
+            if match_idx is not None:
+                clean_answer = cleaned_options[match_idx]
+            else:
+                cleaned_options[0] = clean_answer
+
+        # 4. RANDOMIZE: Shuffle options so correct answer is randomly distributed across A, B, C, D
+        random.shuffle(cleaned_options)
+
+        # 5. Find the new correct index
+        correct_index = cleaned_options.index(clean_answer)
+
+        options_list = [{"id": i, "def": opt} for i, opt in enumerate(cleaned_options)]
 
         formatted_questions.append({
             "word": q.word,
@@ -544,12 +571,13 @@ def ai_quiz():
             "question": q.question,
             "options": options_list,
             "correct_id": correct_index,
-            "answer": q.answer,
+            "answer": clean_answer,
             "explanation": q.explanation,
             "progress_id": matched_cand['progress_id'],
             "word_id": matched_cand['word_id'],
             "target_term": matched_cand['term']
         })
+
 
     return jsonify({
         "success": True,

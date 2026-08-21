@@ -33,35 +33,36 @@ class AIError(Exception):
 
 
 class AIConfigurationError(AIError):
-    """Raised when Gemini API key or configuration is missing or invalid."""
-    def __init__(self, message: str = "Gemini API is not configured or missing API key."):
+    """Raised when AI configuration is missing or invalid."""
+    def __init__(self, message: str = "Hệ thống AI chưa sẵn sàng hoặc cấu hình không hợp lệ. Vui lòng liên hệ quản trị viên."):
         super().__init__(message, status_code=503)
 
 
 class AITimeoutError(AIError):
     """Raised when an AI request times out."""
-    def __init__(self, message: str = "AI request timed out. Please try again later."):
+    def __init__(self, message: str = "Yêu cầu AI bị quá thời gian xử lý. Vui lòng thử lại sau ít phút."):
         super().__init__(message, status_code=504)
 
 
 class AIResponseError(AIError):
-    """Raised when Gemini API returns an error or malformed payload."""
-    def __init__(self, message: str, status_code: int = 502, details: Optional[Dict[str, Any]] = None):
+    """Raised when AI service returns an error or malformed payload."""
+    def __init__(self, message: str = "AI đang bận. Vui lòng thử lại sau ít phút.", status_code: int = 502, details: Optional[Dict[str, Any]] = None):
         super().__init__(message, status_code=status_code, details=details)
 
 
 class AIValidationError(AIError):
-    """Raised when AI response does not match the required Pydantic schema."""
-    def __init__(self, message: str = "AI response failed schema validation.", details: Optional[Dict[str, Any]] = None):
+    """Raised when AI response does not match the required schema."""
+    def __init__(self, message: str = "Dữ liệu AI trả về không đúng định dạng. Vui lòng thử lại.", details: Optional[Dict[str, Any]] = None):
         super().__init__(message, status_code=502, details=details)
 
 
 class AIRateLimitError(AIError):
     """Raised when a user triggers requests faster than allowed cooldown."""
     def __init__(self, retry_after: int, message: Optional[str] = None):
-        msg = message or f"Please wait {retry_after} seconds before requesting AI again."
+        msg = message or f"Vui lòng đợi {retry_after} giây trước khi gửi yêu cầu AI tiếp theo."
         super().__init__(msg, status_code=429, details={"retry_after": retry_after})
         self.retry_after = retry_after
+
 
 
 # =====================================================================
@@ -373,22 +374,29 @@ class AIService:
     def analyze_learning_data(self, stats: dict) -> Any:
         """
         Phase 4: AI Learning Analysis.
-        Analyzes real learner statistics and generates comprehensive pedagogical feedback.
+        Analyzes real learner statistics (Learning progress, Smart Study ratings, and Quiz attempts)
+        and generates comprehensive pedagogical feedback.
         """
         from app.services.schemas import AILearningAnalysis
 
         system_instruction = (
             "You are an expert AI English Learning Coach and Educational Data Analyst for Vietnamese students. "
-            "Your task is to analyze the student's real vocabulary performance data (accuracies, weak words, topic mastery, SRS review needs) "
-            "and generate insightful, encouraging, and deeply practical learning feedback in Vietnamese.\n\n"
+            "Your task is to analyze the student's real vocabulary performance data across 3 key pillars:\n"
+            "1. Overall Learning Progress & Mastery\n"
+            "2. Smart Study (Spaced Repetition) Perception (Easy/Medium/Hard selections and trends)\n"
+            "3. Normal Quiz Performance (Accuracies, Weak vs Strong Words, Weak vs Strong Topics, Recent Mistakes)\n\n"
             "Guidelines:\n"
-            "1. Ground all feedback strictly on the provided data. Do NOT invent new numbers or stats.\n"
-            "2. Highlight positive strengths and mastered achievements first.\n"
-            "3. Identify key vocabulary weaknesses and explain the likely cognitive causes.\n"
-            "4. For each weak word and weak topic, provide concrete, actionable study advice (mnemonics, root words, collocations).\n"
-            "5. Clearly list review priorities so the student knows what to focus on next.\n"
-            "6. Return strictly structured JSON matching the AILearningAnalysis schema."
+            "- Ground all feedback strictly on the provided real data. Do NOT invent new numbers or stats.\n"
+            "- Highlight positive strengths and mastered achievements first.\n"
+            "- Identify key vocabulary weaknesses from both Smart Study 'Hard' selections and Quiz failures.\n"
+            "- For each weak word and weak topic, provide concrete, actionable study advice (mnemonics, root words, collocations, context sentences).\n"
+            "- Keep English learning terms in English (e.g. Routine, Appointment, Schedule) and provide explanations/guidance in natural Vietnamese.\n"
+            "- Clearly list review priorities so the student knows what to focus on next.\n"
+            "- Return strictly structured JSON matching the AILearningAnalysis schema."
         )
+
+        smart_study = stats.get("smart_study", {})
+        quiz = stats.get("quiz", {})
 
         weak_words_text = "\n".join([
             f"- '{w['word']}' ({w['definition']}): accuracy {int(w['accuracy']*100)}%, tested {w['times_tested']} times, reason: {w['reason']}"
@@ -400,20 +408,41 @@ class AIService:
             for t in stats.get("topic_stats", [])
         ]) or "None"
 
+        smart_study_summary = (
+            f"Total Reviews: {smart_study.get('total_reviews', 0)} "
+            f"(Easy: {smart_study.get('easy', 0)}, Medium: {smart_study.get('medium', 0)}, Hard: {smart_study.get('hard', 0)})\n"
+            f"Frequently Hard Words: {', '.join(smart_study.get('hard_words', [])) or 'None'}\n"
+            f"Hard Topics: {', '.join(smart_study.get('hard_topics', [])) or 'None'}"
+        )
+
+        quiz_summary = (
+            f"Total Quiz Attempts: {quiz.get('total_attempts', 0)} "
+            f"(Correct: {quiz.get('correct', 0)}, Incorrect: {quiz.get('incorrect', 0)}, Accuracy: {quiz.get('overall_accuracy', 0)}%)\n"
+            f"Quiz Weak Words: {', '.join(quiz.get('weak_words', [])) or 'None'}\n"
+            f"Quiz Strong Words: {', '.join(quiz.get('strong_words', [])) or 'None'}\n"
+            f"Quiz Weak Topics: {', '.join(quiz.get('weak_topics', [])) or 'None'}"
+        )
+
         due_text = ", ".join([w['word'] for w in stats.get("due_review_words", [])]) or "None"
 
         prompt = (
-            f"Here is the student's current vocabulary learning report:\n\n"
-            f"- Total Enrolled Words: {stats.get('total_words_enrolled', 0)}\n"
-            f"- Tested Words: {stats.get('total_words_tested', 0)} (Total test attempts: {stats.get('total_tests_taken', 0)})\n"
-            f"- Overall Accuracy: {stats.get('overall_accuracy_percentage', 0)}%\n"
+            f"Here is the student's current comprehensive vocabulary learning report:\n\n"
+            f"[1. OVERALL LEARNING PROGRESS]\n"
+            f"- Enrolled Words: {stats.get('total_words_enrolled', 0)}\n"
+            f"- Tested Words: {stats.get('total_words_tested', 0)}\n"
+            f"- Overall Combined Accuracy: {stats.get('overall_accuracy_percentage', 0)}%\n"
             f"- Mastered Words: {stats.get('total_mastered_words', 0)} ({stats.get('mastery_percentage', 0)}%)\n"
-            f"- Weak Words Count: {stats.get('total_weak_words', 0)}\n"
+            f"- EXP: {stats.get('xp', 0)} | Current Streak: {stats.get('current_streak', 0)} days (Longest: {stats.get('longest_streak', 0)} days)\n"
             f"- Words Due for SRS Review: {stats.get('total_due_reviews', 0)}\n\n"
-            f"Weak Words Details:\n{weak_words_text}\n\n"
+            f"[2. SMART STUDY (SRS) HISTORY]\n"
+            f"{smart_study_summary}\n\n"
+            f"[3. NORMAL QUIZ PERFORMANCE]\n"
+            f"{quiz_summary}\n\n"
+            f"[4. WEAK WORDS & TOPIC DETAILS]\n"
+            f"Weak Words Diagnosis:\n{weak_words_text}\n\n"
             f"Topic Performance:\n{topics_text}\n\n"
-            f"Due Review Words: {due_text}\n\n"
-            f"Please produce a comprehensive, structured learning analysis in Vietnamese for this learner."
+            f"Due for Immediate Review: {due_text}\n\n"
+            f"Please produce a comprehensive, structured learning analysis in natural Vietnamese for this learner."
         )
 
         return self.generate_structured(
@@ -421,6 +450,7 @@ class AIService:
             schema_class=AILearningAnalysis,
             system_instruction=system_instruction
         )
+
 
 
 

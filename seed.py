@@ -590,9 +590,10 @@ logger = logging.getLogger(__name__)
 
 def ensure_schema_compatibility(app=None):
     """
-    Ensures existing database tables match required nullability constraints.
-    In PostgreSQL, alters existing 'topic.user_id' and 'word.user_id' columns to DROP NOT NULL
-    so system vocabulary with user_id=None can be inserted into databases created prior to this change.
+    Ensures existing database tables match required constraints and columns.
+    In PostgreSQL:
+    1. Alters existing 'topic.user_id' and 'word.user_id' columns to DROP NOT NULL.
+    2. Adds 'longest_streak' column to 'user' table if missing.
     Idempotent and safe to run on every startup.
     """
     if app is None:
@@ -603,7 +604,7 @@ def ensure_schema_compatibility(app=None):
         dialect_name = engine.dialect.name
 
         if dialect_name in ('postgresql', 'postgres'):
-            logger.info("[DB] Checking PostgreSQL schema compatibility for topic.user_id and word.user_id...")
+            logger.info("[DB] Checking PostgreSQL schema compatibility...")
             with engine.connect() as conn:
                 inspector = inspect(engine)
                 table_names = inspector.get_table_names()
@@ -616,7 +617,15 @@ def ensure_schema_compatibility(app=None):
                     conn.execute(text("ALTER TABLE word ALTER COLUMN user_id DROP NOT NULL;"))
                     logger.info("[DB] Ensured 'word.user_id' allows NULL.")
 
+                if 'user' in table_names:
+                    columns = [col['name'] for col in inspector.get_columns('user')]
+                    if 'longest_streak' not in columns:
+                        conn.execute(text('ALTER TABLE "user" ADD COLUMN longest_streak INTEGER DEFAULT 0;'))
+                        conn.execute(text('UPDATE "user" SET longest_streak = COALESCE(current_streak, 0) WHERE longest_streak IS NULL OR longest_streak = 0;'))
+                        logger.info("[DB] Added 'longest_streak' column to 'user' table.")
+
                 conn.commit()
+
 
 
 def seed_database(app=None, verbose=True):

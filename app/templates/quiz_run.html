@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Quiz - Vocab App{% endblock %}
+{% block title %}Làm bài Quiz - WebVocab{% endblock %}
 
 {% block content %}
 <div style="max-width: 800px; margin: 0 auto; padding-top: 20px;">
@@ -8,7 +8,7 @@
 
         {% for q in quiz_data %}
         <div class="quiz-card" id="card-{{ loop.index0 }}" style="display: {% if loop.index0 == 0 %}block{% else %}none{% endif %};">
-            <p style="color: #666; font-weight: bold; margin-bottom: 20px; text-transform: uppercase;">Question {{ loop.index }} of {{ quiz_data|length }}</p>
+            <p style="color: #666; font-weight: bold; margin-bottom: 20px; text-transform: uppercase;">Câu hỏi {{ loop.index }} / {{ quiz_data|length }}</p>
             <h2 style="font-size: 2.5rem; margin-bottom: 40px; color: #333;">{{ q.target_term }}</h2>
 
             <div style="display: flex; flex-direction: column; gap: 15px;">
@@ -59,7 +59,6 @@
             button.style.color = 'white';
             button.style.borderColor = '#d32f2f';
 
-            // THE FIX: Check the exact data-id attribute instead of the onclick string!
             buttons.forEach(btn => {
                 if (parseInt(btn.getAttribute('data-id')) === correctId) {
                     btn.style.backgroundColor = '#04AA6D';
@@ -85,7 +84,7 @@
             } else {
                 submitQuiz();
             }
-        }, 1500);
+        }, 1200);
     }
 
     function submitQuiz() {
@@ -102,4 +101,4 @@
         });
     }
 </script>
-{% endblock %}
+{% endblock %}

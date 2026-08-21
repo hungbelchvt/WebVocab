@@ -303,6 +303,81 @@ class TestPhase3(unittest.TestCase):
         self.assertEqual(self.user.xp, initial_xp + 10)
 
     # -----------------------------------------------------------------
+    # AI Quiz Option Randomization & Invariant Tests
+    # -----------------------------------------------------------------
+    @patch('app.ai_routes.ai_service.generate_personalized_quiz')
+    def test_quiz_options_shuffled_and_invariants(self, mock_gen_quiz):
+        """
+        Verify AI Quiz option randomization:
+        1. Correct answer is NOT hardcoded at index 0.
+        2. Correct answer is accurately pointed to by correct_id.
+        3. Options contain zero duplicates.
+        4. Exactly one option matches the correct answer.
+        5. Multiple generations exhibit varied answer positions.
+        """
+        self._login_client()
+
+        mock_response = AIQuizResponse(
+            questions=[
+                AIQuizQuestion(
+                    word="negotiate",
+                    type="multiple_choice",
+                    question="What is the meaning of 'negotiate'?",
+                    options=["To discuss terms to reach an agreement", "To declare bankruptcy", "To hire employees", "To sell products"],
+                    answer="To discuss terms to reach an agreement",
+                    explanation="Explanation text."
+                ),
+                AIQuizQuestion(
+                    word="lucrative",
+                    type="multiple_choice",
+                    question="Which word means highly profitable?",
+                    options=["lucrative", "bankrupt", "negligent", "fragile"],
+                    answer="lucrative",
+                    explanation="Explanation text."
+                )
+            ]
+        )
+        mock_gen_quiz.return_value = mock_response
+
+        # Sample across multiple requests to verify positions are distributed and valid
+        seen_indices = set()
+        for _ in range(25):
+            ai_service._rate_limits.clear()
+            resp = self.client.post('/api/ai/quiz', json={"topic_id": self.topic1.id, "question_count": 2})
+            self.assertEqual(resp.status_code, 200)
+            data = resp.get_json()
+            self.assertTrue(data['success'])
+
+
+            for q in data['questions']:
+                options = q['options']
+                correct_id = q['correct_id']
+                answer = q['answer']
+
+                # Invariant 1: Options length >= 2
+                self.assertGreaterEqual(len(options), 2)
+
+                # Invariant 2: correct_id is valid index
+                self.assertGreaterEqual(correct_id, 0)
+                self.assertLess(correct_id, len(options))
+
+                # Invariant 3: options[correct_id]['def'] equals the answer
+                self.assertEqual(options[correct_id]['def'], answer)
+
+                # Invariant 4: No duplicate option definitions (case-insensitive)
+                opt_texts = [o['def'].lower().strip() for o in options]
+                self.assertEqual(len(opt_texts), len(set(opt_texts)), "Options must contain no duplicates")
+
+                # Invariant 5: Exactly one option matches answer
+                matching_count = sum(1 for o in options if o['def'] == answer)
+                self.assertEqual(matching_count, 1, "Exactly one option must match the correct answer")
+
+                seen_indices.add(correct_id)
+
+        # Over 25 runs with 2 questions each (50 trials), we must observe multiple distinct indices
+        self.assertGreater(len(seen_indices), 1, "Correct answers must be randomly distributed, not always index 0")
+
+    # -----------------------------------------------------------------
     # UI Route & Existing Routes Test
     # -----------------------------------------------------------------
     def test_ai_quiz_page_renders(self):
@@ -310,8 +385,9 @@ class TestPhase3(unittest.TestCase):
         self._login_client()
         resp = self.client.get('/ai/quiz')
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'AI Quiz Generator', resp.data)
-        self.assertIn(b'Gemini 3.6 Flash', resp.data)
+        self.assertIn(b'Luy\xe1\xbb\x87n t\xe1\xba\xadp Quiz AI', resp.data)
+        self.assertIn(b'ai-badge', resp.data)
+        self.assertNotIn(b'Gemini 3.6 Flash', resp.data)
         self.assertIn(b'ai_quiz.js', resp.data)
 
     def test_ai_quiz_page_requires_auth(self):
@@ -322,3 +398,4 @@ class TestPhase3(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

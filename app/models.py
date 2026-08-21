@@ -14,10 +14,16 @@ class User(db.Model, UserMixin):
     xp = db.Column(db.Integer, default=0)
     level = db.Column(db.Integer, default=1)
     current_streak = db.Column(db.Integer, default=0)
+    longest_streak = db.Column(db.Integer, default=0)
     last_active = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     is_admin = db.Column(db.Boolean, default=False)
+
     # Relationship to private progress entries
-    all_word_progress = db.relationship('WordProgress', backref='progress_owner', lazy=True)
+    all_word_progress = db.relationship('WordProgress', backref='progress_owner', lazy=True, cascade='all, delete-orphan')
+
+    # Relationship to Smart Study reviews and Quiz attempts
+    smart_study_reviews = db.relationship('SmartStudyReview', backref='user', lazy=True, cascade='all, delete-orphan')
+    quiz_attempts = db.relationship('QuizAttempt', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -54,7 +60,7 @@ class Word(db.Model):
     synonyms = db.Column(db.String(200))
     antonyms = db.Column(db.String(200))
 
-    # The creator's intended difficulty (optional default) [3, 51, 129]
+    # The creator's intended difficulty (optional default)
     difficulty = db.Column(db.String(20), default='medium')
     date_added = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -65,7 +71,7 @@ class Word(db.Model):
         return f'<Word {self.term}>'
 
 
-# This is the new "Quizlet" private progress table [134-137, 139-141]
+# This is the "Quizlet" private progress table
 class WordProgress(db.Model):
     __tablename__ = 'word_progress'
 
@@ -73,12 +79,12 @@ class WordProgress(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     word_id = db.Column(db.Integer, db.ForeignKey('word.id'), nullable=False)
 
-    # Spaced Repetition System (SRS) Data (This is PRIVATE to the user!) [2, 131]
-    user_difficulty_rating = db.Column(db.String(20), default='medium')  # What they rated it [70-71, 129]
+    # Spaced Repetition System (SRS) Data (PRIVATE to the user)
+    user_difficulty_rating = db.Column(db.String(20), default='medium')
     last_reviewed = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     next_review = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # Stats for "Weak Words" and Accuracy features (This is PRIVATE to the user!) [22, 93, 132-133]
+    # Stats for "Weak Words" and Accuracy features (PRIVATE to the user)
     times_tested = db.Column(db.Integer, default=0)
     times_correct = db.Column(db.Integer, default=0)
     is_mastered = db.Column(db.Boolean, default=False)
@@ -91,4 +97,50 @@ class WordProgress(db.Model):
 
     def __repr__(self):
         return f'<WordProgress {self.word.term} for {self.user.username}>'
+
+
+class SmartStudyReview(db.Model):
+    """
+    Historical log of every Smart Study (SRS) review event.
+    Persists Easy / Medium / Hard ratings per user, word, topic over time.
+    """
+    __tablename__ = 'smart_study_review'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    word_id = db.Column(db.Integer, db.ForeignKey('word.id'), nullable=False, index=True)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=True, index=True)
+    rating = db.Column(db.String(20), nullable=False)  # 'easy', 'medium', 'hard'
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Relationships
+    word = db.relationship('Word', backref=db.backref('study_reviews', lazy=True))
+    topic = db.relationship('Topic', backref=db.backref('study_reviews', lazy=True))
+
+    def __repr__(self):
+        return f'<SmartStudyReview user={self.user_id} word={self.word_id} rating={self.rating}>'
+
+
+class QuizAttempt(db.Model):
+    """
+    Historical log of every normal Quiz question attempt.
+    Tracks correct / incorrect answers per user, word, topic over time.
+    """
+    __tablename__ = 'quiz_attempt'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    word_id = db.Column(db.Integer, db.ForeignKey('word.id'), nullable=False, index=True)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=True, index=True)
+    is_correct = db.Column(db.Boolean, nullable=False, default=False)
+    selected_id = db.Column(db.Integer, nullable=True)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Relationships
+    word = db.relationship('Word', backref=db.backref('quiz_attempts', lazy=True))
+    topic = db.relationship('Topic', backref=db.backref('quiz_attempts', lazy=True))
+
+    def __repr__(self):
+        return f'<QuizAttempt user={self.user_id} word={self.word_id} correct={self.is_correct}>'
+
 

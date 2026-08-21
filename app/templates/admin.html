@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Admin Panel - Vocab App{% endblock %}
+{% block title %}Quản trị hệ thống - WebVocab{% endblock %}
 
 {% block content %}
 <div class="dashboard-header" style="display: flex; align-items: center; gap: 15px;">
     <i class="fa-solid fa-shield-halved" style="font-size: 2.5rem; color: #f44336;"></i>
     <div>
-        <h1 style="margin: 0;">Admin Control Panel</h1>
-        <p style="color: #666; margin-top: 5px;">Manage users and global content.</p>
+        <h1 style="margin: 0;">Bảng điều khiển Quản trị</h1>
+        <p style="color: #666; margin-top: 5px;">Quản lý người dùng và nội dung toàn hệ thống.</p>
     </div>
 </div>
 
@@ -15,17 +15,17 @@
     
     <div class="w3-card" style="padding: 25px;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 15px;">
-            <h3 style="margin: 0;">Registered Users</h3>
-            <a href="{{ url_for('register') }}" class="btn" style="background: #04AA6D; color: white; border-radius: 5px; padding: 8px 15px; text-decoration: none;"><i class="fa-solid fa-plus"></i> Add User</a>
+            <h3 style="margin: 0;">Danh sách người dùng</h3>
+            <a href="{{ url_for('register') }}" class="btn" style="background: #04AA6D; color: white; border-radius: 5px; padding: 8px 15px; text-decoration: none;"><i class="fa-solid fa-plus"></i> Thêm người dùng</a>
         </div>
         
         <table style="width: 100%; text-align: left; border-collapse: collapse;">
             <thead>
                 <tr style="background: #f8f9fa; color: #555;">
                     <th style="padding: 12px; border-bottom: 2px solid #ddd;">ID</th>
-                    <th style="padding: 12px; border-bottom: 2px solid #ddd;">Username</th>
-                    <th style="padding: 12px; border-bottom: 2px solid #ddd;">Role</th>
-                    <th style="padding: 12px; border-bottom: 2px solid #ddd; text-align: right;">Action</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #ddd;">Tên đăng nhập</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #ddd;">Vai trò</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #ddd; text-align: right;">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
@@ -35,15 +35,15 @@
                     <td style="padding: 12px; font-weight: bold;">{{ user.username }}</td>
                     <td style="padding: 12px;">
                         {% if user.is_admin %}
-                            <span style="background: #ffebee; color: #f44336; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: bold;">Admin</span>
+                            <span style="background: #ffebee; color: #f44336; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: bold;">Quản trị viên</span>
                         {% else %}
-                            <span style="background: #e3f2fd; color: #2196f3; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem;">User</span>
+                            <span style="background: #e3f2fd; color: #2196f3; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem;">Học viên</span>
                         {% endif %}
                     </td>
                     <td style="padding: 12px; text-align: right;">
                         {% if user.id != current_user.id %}
                         <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="margin: 0;">
-                            <button type="submit" class="btn" style="background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;" onclick="return confirm('Delete this user completely?');">
+                            <button type="submit" class="btn" style="background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;" onclick="return confirm('Bạn có chắc chắn muốn xóa hoàn toàn người dùng này?');">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </form>
@@ -59,23 +59,23 @@
         <div class="w3-card mini-stat-card" style="margin: 0;">
             <i class="fa-solid fa-users" style="color: #2196f3;"></i>
             <div>
-                <h4>Total Users</h4>
+                <h4>Tổng số người dùng</h4>
                 <p>{{ users|length }}</p>
             </div>
         </div>
         <div class="w3-card mini-stat-card" style="margin: 0;">
             <i class="fa-solid fa-layer-group" style="color: #9c27b0;"></i>
             <div>
-                <h4>Total Topics</h4>
+                <h4>Tổng số chủ đề</h4>
                 <p>{{ topics|length }}</p>
             </div>
         </div>
         
         <div class="w3-card" style="padding: 20px; text-align: center;">
-            <h4 style="margin-top: 0;">Content Management</h4>
-            <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">Admins have global access to modify or delete any deck in the library.</p>
-            <a href="{{ url_for('flashcards') }}" class="btn-block" style="display: block; text-decoration: none; background: #333;">Go to Library</a>
+            <h4 style="margin-top: 0;">Quản lý nội dung</h4>
+            <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">Quản trị viên có toàn quyền chỉnh sửa và xóa bất kỳ bộ từ vựng nào trong thư viện.</p>
+            <a href="{{ url_for('flashcards') }}" class="btn-block" style="display: block; text-decoration: none; background: #333;">Đến Thư viện</a>
         </div>
     </div>
 </div>
-{% endblock %}
+{% endblock %}

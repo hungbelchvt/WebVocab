@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}My Progress - Vocab App{% endblock %}
+{% block title %}Tiến độ học tập - WebVocab{% endblock %}
 
 {% block content %}
 <div class="deck-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
     <div>
-        <h1>My Learning Progress</h1>
-        <p style="color: #666; margin-top: 5px;">Track your vocabulary mastery and review your weakest terms.</p>
+        <h1>Tiến độ học tập của tôi</h1>
+        <p style="color: #666; margin-top: 5px;">Theo dõi mức độ thành thạo từ vựng và xem lại những từ cần cải thiện.</p>
     </div>
     <a href="{{ url_for('ai_ui.learning_analysis_page') }}" class="btn" style="background: #2196f3; color: white; border-radius: 8px; font-weight: bold; padding: 10px 20px; display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
         <i class="fa-solid fa-chart-pie"></i> Phân tích AI
@@ -16,21 +16,21 @@
     <div class="w3-card mini-stat-card">
         <i class="fa-solid fa-seedling" style="color: #4caf50; font-size: 2rem;"></i>
         <div>
-            <h4>New Words</h4>
+            <h4>Từ mới</h4>
             <p style="font-size: 1.5rem; color: #333;">{{ new_count }}</p>
         </div>
     </div>
     <div class="w3-card mini-stat-card">
         <i class="fa-solid fa-brain" style="color: #ff9800; font-size: 2rem;"></i>
         <div>
-            <h4>Learning</h4>
+            <h4>Đang học</h4>
             <p style="font-size: 1.5rem; color: #333;">{{ learning_count }}</p>
         </div>
     </div>
     <div class="w3-card mini-stat-card">
         <i class="fa-solid fa-trophy" style="color: #ffd700; font-size: 2rem;"></i>
         <div>
-            <h4>Mastered</h4>
+            <h4>Đã thành thạo</h4>
             <p style="font-size: 1.5rem; color: #333;">{{ mastered_count }}</p>
         </div>
     </div>
@@ -39,7 +39,7 @@
 <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 30px; margin-top: 30px;">
     
     <div class="w3-card" style="padding: 30px;">
-        <h3 style="margin-top: 0;">Mastery History (Last 7 Days)</h3>
+        <h3 style="margin-top: 0;">Lịch sử hoàn thành từ (7 ngày qua)</h3>
 
         <div style="position: relative; height: 300px; width: 100%;">
             <canvas id="masteryChart"></canvas>
@@ -48,9 +48,9 @@
     </div>
 
     <div class="w3-card" style="padding: 30px; max-height: 400px; overflow-y: auto;">
-        <h3 style="margin-top: 0;">Needs Review</h3>
+        <h3 style="margin-top: 0;">Từ vựng cần ôn tập</h3>
         {% if weak_words|length == 0 %}
-            <p style="color: #666;">Great job! You don't have any weak words right now.</p>
+            <p style="color: #666;">Tuyệt vời! Bạn không có từ vựng yếu nào tại thời điểm này.</p>
         {% else %}
             <ul style="list-style: none; padding: 0; margin: 0;">
                 {% for progress in weak_words %}
@@ -63,7 +63,7 @@
                             <span style="font-weight: bold; color: #f44336;">
                                 {{ ((progress.times_correct / progress.times_tested) * 100) | round(1) }}%
                             </span><br>
-                            <span style="font-size: 0.8rem; color: #888;">Tested {{ progress.times_tested }}x</span>
+                            <span style="font-size: 0.8rem; color: #888;">Đã kiểm tra {{ progress.times_tested }} lần</span>
                         </div>
                     </li>
                 {% endfor %}
@@ -81,7 +81,7 @@
             data: {
                 labels: {{ chart_labels | tojson }},
                 datasets: [{
-                    label: 'Words Mastered',
+                    label: 'Số từ đã thành thạo',
                     data: {{ chart_data | tojson }},
                     borderColor: '#04AA6D',
                     backgroundColor: 'rgba(4, 170, 109, 0.2)',
@@ -110,4 +110,4 @@
         });
     });
 </script>
-{% endblock %}
+{% endblock %}

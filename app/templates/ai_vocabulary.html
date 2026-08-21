@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}AI Vocabulary Assistant - Vocab App{% endblock %}
+{% block title %}Trợ lý Từ vựng AI - WebVocab{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_styles.css') }}">
 
 <div class="ai-header">
     <h1>
-        <i class="fa-solid fa-wand-magic-sparkles" style="color: #04AA6D;"></i> AI Vocabulary Assistant
-        <span class="ai-badge">Gemini 3.6 Flash</span>
+        <i class="fa-solid fa-wand-magic-sparkles" style="color: #04AA6D;"></i> Trợ lý Từ vựng AI
+        <span class="ai-badge">AI</span>
     </h1>
     <p class="ai-subtitle">Nhập bất kỳ từ vựng tiếng Anh nào để AI giải thích nghĩa, phát âm IPA, ví dụ thực tế, từ đồng nghĩa và mẹo ghi nhớ.</p>
 </div>
@@ -48,14 +48,14 @@
 <div id="ai-loading-state" class="ai-loading-card">
     <div class="ai-spinner"></div>
     <p class="ai-loading-text">AI đang phân tích từ vựng...</p>
-    <p class="ai-loading-subtext">Đang trích xuất nghĩa, phát âm IPA, ví dụ và mẹo nhớ từ Gemini 3.6 Flash</p>
+    <p class="ai-loading-subtext">Đang trích xuất nghĩa, phát âm IPA, ví dụ thực tế và mẹo ghi nhớ...</p>
 </div>
 
 <!-- Error State Card -->
 <div id="ai-error-state" class="ai-error-card">
     <div class="ai-error-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
     <h3 class="ai-error-title">Không thể phân tích từ</h3>
-    <p id="ai-error-msg" class="ai-error-msg">Đã xảy ra lỗi trong quá trình kết nối với AI.</p>
+    <p id="ai-error-msg" class="ai-error-msg">AI đang bận. Vui lòng thử lại sau ít phút.</p>
     <button type="button" id="ai-retry-btn" class="ai-btn-retry"><i class="fa-solid fa-rotate-right"></i> Thử lại</button>
 </div>
 
@@ -166,7 +166,7 @@
             <div id="ai-modal-alert" class="ai-modal-alert"></div>
 
             <div class="form-group" style="margin-bottom: 16px;">
-                <label class="form-label" for="ai-topic-select">Chọn danh mục (Deck):</label>
+                <label class="form-label" for="ai-topic-select">Chọn danh mục (Chủ đề):</label>
                 <select id="ai-topic-select" class="form-control">
                     <!-- Loaded dynamically via /api/ai/topics -->
                 </select>

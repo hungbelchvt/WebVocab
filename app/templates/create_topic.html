@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Create Deck - Vocab App{% endblock %}
+{% block title %}Tạo chủ đề mới - WebVocab{% endblock %}
 
 {% block content %}
 <div class="w3-card" style="max-width: 500px; margin: 40px auto; padding: 30px;">
-    <h2>Create a New Deck</h2>
+    <h2>Tạo chủ đề từ vựng mới</h2>
     <form method="POST">
         {{ form.hidden_tag() }}
         <div style="margin-bottom: 20px;">
@@ -13,4 +13,4 @@
         {{ form.submit(class="btn btn-primary", style="width: 100%; background: #04AA6D;") }}
     </form>
 </div>
-{% endblock %}
+{% endblock %}

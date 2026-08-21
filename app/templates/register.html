@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Register - Vocab App{% endblock %}
+{% block title %}Đăng ký tài khoản - WebVocab{% endblock %}
 
 {% block content %}
 <div class="auth-wrapper">
     <div class="w3-card auth-card">
         <div style="text-align: center; margin-bottom: 30px;">
             <i class="fa-solid fa-user-plus" style="font-size: 3rem; color: #04AA6D; margin-bottom: 10px;"></i>
-            <h2 style="margin: 0; color: #333;">Create an Account</h2>
-            <p style="color: #666; margin-top: 5px;">Start mastering your vocabulary today.</p>
+            <h2 style="margin: 0; color: #333;">Tạo tài khoản mới</h2>
+            <p style="color: #666; margin-top: 5px;">Bắt đầu nâng cao vốn từ vựng tiếng Anh của bạn ngay hôm nay.</p>
         </div>
 
         <form method="POST" action="">
@@ -17,26 +17,26 @@
             {% endif %}
             
             <div class="form-group">
-                <label class="form-label" for="username">Choose a Username</label>
-                <input type="text" id="username" name="username" class="form-control" required autofocus>
+                <label class="form-label" for="username">Tên đăng nhập</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="Chọn tên đăng nhập (3-20 ký tự)" required autofocus>
             </div>
             
             <div class="form-group">
-                <label class="form-label" for="password">Create a Password</label>
-                <input type="password" id="password" name="password" class="form-control" required>
+                <label class="form-label" for="password">Mật khẩu</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="Tối thiểu 6 ký tự" required>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="confirm_password">Confirm Password</label>
-                <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+                <label class="form-label" for="confirm_password">Xác nhận mật khẩu</label>
+                <input type="password" id="confirm_password" name="confirm_password" class="form-control" placeholder="Nhập lại mật khẩu" required>
             </div>
         
-            <button type="submit" class="btn-block">Sign Up</button>
+            <button type="submit" class="btn-block">Đăng ký tài khoản</button>
         </form>
         
         <p style="text-align: center; margin-top: 25px; color: #666; font-size: 0.95rem;">
-            Already have an account? <a href="{{ url_for('login') }}" style="color: #04AA6D; text-decoration: none; font-weight: bold;">Login here</a>.
+            Đã có tài khoản? <a href="{{ url_for('login') }}" style="color: #04AA6D; text-decoration: none; font-weight: bold;">Đăng nhập tại đây</a>.
         </p>
     </div>
 </div>
-{% endblock %}
+{% endblock %}

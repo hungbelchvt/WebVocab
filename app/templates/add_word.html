@@ -1,26 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Add Words - Vocab App{% endblock %}
+{% block title %}Quản lý Từ vựng - WebVocab{% endblock %}
 
 {% block content %}
 <div class="deck-header">
     <a href="{{ url_for('view_flashcards', topic_id=topic.id) }}" style="color: #666; text-decoration: none;">
-        <i class="fa-solid fa-arrow-left"></i> View Deck
+        <i class="fa-solid fa-arrow-left"></i> Xem danh sách thẻ
     </a>
-    <h2 style="margin-top: 10px;">Editing Deck: {{ topic.name }}</h2>
+    <h2 style="margin-top: 10px;">Chỉnh sửa chủ đề: {{ topic.name }}</h2>
 </div>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;">
     <div class="w3-card">
-        <h3 id="form-title" style="margin-top: 0; color: #333;">Add a Term</h3>
+        <h3 id="form-title" style="margin-top: 0; color: #333;">Thêm từ vựng mới</h3>
         <form id="word-form" method="POST" action="{{ url_for('add_word', topic_id=topic.id) }}">
             {{ form.hidden_tag() }}
 
             <div class="form-group" style="margin-bottom: 15px;">
                 {{ form.term.label(class="form-label") }}
                 <div style="display: flex; gap: 8px;">
-                    {{ form.term(class="form-control", placeholder="e.g., Apple", id="term", style="flex: 1;") }}
+                    {{ form.term(class="form-control", placeholder="Ví dụ: resilient, abandon, apple...", id="term", style="flex: 1;") }}
                     <button type="button" id="dict-lookup-btn" class="btn" style="background-color: #2196f3; color: white; border: none; padding: 10px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; white-space: nowrap;" onclick="lookupWordInDict()">
-                        <i class="fa-solid fa-book-open"></i> Lookup
+                        <i class="fa-solid fa-book-open"></i> Tra từ
                     </button>
                 </div>
                 <div id="dict-status" style="font-size: 0.85rem; margin-top: 6px; display: none;"></div>
@@ -28,49 +28,49 @@
 
             <div class="form-group" style="margin-bottom: 15px;">
                 {{ form.ipa.label(class="form-label") }}
-                {{ form.ipa(class="form-control", placeholder="e.g., ˈæpəl", id="ipa") }}
+                {{ form.ipa(class="form-control", placeholder="Ví dụ: rɪˈzɪl.jənt, ˈæp.əl", id="ipa") }}
             </div>
 
             <div class="form-group" style="margin-bottom: 15px;">
                 {{ form.definition.label(class="form-label") }}
-                {{ form.definition(class="form-control", placeholder="e.g., A red or green fruit.", rows="3", id="definition") }}
+                {{ form.definition(class="form-control", placeholder="Nhập định nghĩa tiếng Anh hoặc giải thích nghĩa...", rows="3", id="definition") }}
             </div>
 
             <div class="form-group" style="margin-bottom: 20px;">
                 {{ form.example_sentence.label(class="form-label") }}
-                {{ form.example_sentence(class="form-control", placeholder="e.g., I ate an apple today.", rows="2", id="example_sentence") }}
+                {{ form.example_sentence(class="form-control", placeholder="Ví dụ câu tiếng Anh sử dụng từ này...", rows="2", id="example_sentence") }}
             </div>
 
             <div style="display: flex; gap: 10px; margin-top: 10px;">
                 {{ form.submit(id="submit-btn", class="btn-block", style="background-color: #04AA6D; border: none; flex: 1; padding: 12px; border-radius: 5px; color: white; cursor: pointer; font-weight: bold;") }}
-                <button type="button" id="cancel-btn" class="btn" style="display: none; background-color: #f44336; color: white; padding: 12px 20px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;" onclick="cancelEdit()">Cancel</button>
+                <button type="button" id="cancel-btn" class="btn" style="display: none; background-color: #f44336; color: white; padding: 12px 20px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;" onclick="cancelEdit()">Hủy</button>
             </div>
         </form>
     </div>
 
     <div class="w3-card" style="margin-bottom: 30px; border-left: 4px solid #2196f3;">
-        <h3 style="margin-top: 0; color: #333;"><i class="fa-solid fa-file-csv" style="color: #2196f3;"></i> Bulk Import via CSV</h3>
-        <p style="color: #666; font-size: 0.95rem;">Upload a .csv file to add multiple words instantly. Your file must have headers and follow this exact column order: <strong>Term, IPA, Definition, Example</strong>.</p>
+        <h3 style="margin-top: 0; color: #333;"><i class="fa-solid fa-file-csv" style="color: #2196f3;"></i> Nhập hàng loạt qua tệp CSV</h3>
+        <p style="color: #666; font-size: 0.95rem;">Tải lên tệp .csv để thêm nhiều từ vựng cùng lúc. Tệp cần có tiêu đề theo đúng thứ tự các cột: <strong>Term, IPA, Definition, Example</strong>.</p>
 
         <div style="background: #f4f6f8; padding: 12px; border-radius: 5px; margin: 15px 0; border: 1px solid #e0e0e0;">
-            <p style="margin: 0 0 5px 0; font-size: 0.85rem; font-weight: bold; color: #555;">Example format (open in Notepad or Excel):</p>
+            <p style="margin: 0 0 5px 0; font-size: 0.85rem; font-weight: bold; color: #555;">Định dạng mẫu:</p>
             <div style="font-family: monospace; font-size: 0.9rem; color: #333; line-height: 1.5;">
                 Term,IPA,Definition,Example<br>
                 Apple,ˈæpəl,A red or green fruit.,I ate an apple today.<br>
                 Cat,kæt,A small feline pet.,The cat slept on the mat.<br>
                 <span style="color: #888;">Hello,,A standard greeting.,Hello there!</span>
             </div>
-            <p style="margin: 8px 0 0 0; font-size: 0.8rem; color: #888;"><i>*Note: If you don't have an IPA or Example, just leave it blank but keep the commas! (See 'Hello' above)</i></p>
+            <p style="margin: 8px 0 0 0; font-size: 0.8rem; color: #888;"><i>*Ghi chú: Nếu từ không có IPA hoặc Ví dụ, hãy để trống nhưng giữ nguyên dấu phẩy phân cách!</i></p>
         </div>
 
         <form action="{{ url_for('import_csv', topic_id=topic.id) }}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
             <input type="file" name="file" accept=".csv" required style="flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
-            <button type="submit" class="btn" style="background: #2196f3; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer;">Upload & Import</button>
+            <button type="submit" class="btn" style="background: #2196f3; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer;">Tải lên & Nhập</button>
         </form>
     </div>
 
     <div class="w3-card" style="grid-column: 1 / -1;">
-        <h3 style="margin-top: 0;">Words in Deck ({{ words|length }})</h3>
+        <h3 style="margin-top: 0;">Danh sách từ trong chủ đề ({{ words|length }})</h3>
         <ul style="list-style: none; padding: 0;">
             {% for word in words %}
                 <li style="padding: 15px 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
@@ -93,7 +93,7 @@
                         </button>
 
                         <form action="{{ url_for('delete_word', word_id=word.id) }}" method="POST" style="margin: 0;">
-                            <button type="submit" class="btn btn-small" style="background: #ff4d4d; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer;" onclick="return confirm('Delete this word for everyone?');">
+                            <button type="submit" class="btn btn-small" style="background: #ff4d4d; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer;" onclick="return confirm('Bạn có chắc chắn muốn xóa từ vựng này?');">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </form>
@@ -105,48 +105,39 @@
 </div>
 
 <script>
-    // Store the original add route so we can reset it later
     const defaultAction = "{{ url_for('add_word', topic_id=topic.id) }}";
 
     function setupEdit(button) {
-        // Smoothly scroll back to the form
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
-        // Grab the data from the button we clicked
         const id = button.getAttribute('data-id');
         const term = button.getAttribute('data-term');
         const ipa = button.getAttribute('data-ipa');
         const definition = button.getAttribute('data-def');
         const example = button.getAttribute('data-ex');
 
-        // Fill the form inputs using WTForms auto-generated IDs
         document.getElementById('term').value = term;
         document.getElementById('ipa').value = ipa;
         document.getElementById('definition').value = definition;
         document.getElementById('example_sentence').value = example;
 
-        // Change the form action to our new edit route
         document.getElementById('word-form').action = `/edit_word/${id}`;
 
-        // Update the UI to show we are in Edit Mode
-        document.getElementById('form-title').innerText = "Edit Term: " + term;
-        document.getElementById('submit-btn').value = "Update Word";
+        document.getElementById('form-title').innerText = "Chỉnh sửa từ: " + term;
+        document.getElementById('submit-btn').value = "Cập nhật từ vựng";
         document.getElementById('cancel-btn').style.display = "block";
     }
 
     function cancelEdit() {
-        // Reset form action back to create mode
         document.getElementById('word-form').action = defaultAction;
 
-        // Clear all inputs
         document.getElementById('term').value = "";
         document.getElementById('ipa').value = "";
         document.getElementById('definition').value = "";
         document.getElementById('example_sentence').value = "";
 
-        // Reset the UI
-        document.getElementById('form-title').innerText = "Add a Term";
-        document.getElementById('submit-btn').value = "Save Word";
+        document.getElementById('form-title').innerText = "Thêm từ vựng mới";
+        document.getElementById('submit-btn').value = "Lưu từ vựng";
         document.getElementById('cancel-btn').style.display = "none";
         document.getElementById('dict-status').style.display = "none";
     }
@@ -155,7 +146,7 @@
         const termInput = document.getElementById('term');
         const word = termInput.value.trim();
         if (!word) {
-            alert('Please enter a word to look up.');
+            alert('Vui lòng nhập từ tiếng Anh cần tra cứu.');
             termInput.focus();
             return;
         }
@@ -163,10 +154,10 @@
         const statusEl = document.getElementById('dict-status');
         const btn = document.getElementById('dict-lookup-btn');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Looking up...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tra...';
         statusEl.style.display = 'block';
         statusEl.style.color = '#666';
-        statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Searching dictionary & database...';
+        statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tìm kiếm thông tin từ vựng...';
 
         try {
             const response = await fetch(`/api/dictionary/${encodeURIComponent(word)}`);
@@ -178,25 +169,24 @@
                 if (d.definition) document.getElementById('definition').value = d.definition;
                 if (d.example_sentence) document.getElementById('example_sentence').value = d.example_sentence;
 
-                const sourceBadge = result.source === 'database' ? '<span style="color:#04AA6D;font-weight:bold;">[Database]</span>' : '<span style="color:#2196f3;font-weight:bold;">[Free Dictionary API]</span>';
-                let statusHtml = `✓ Auto-filled from ${sourceBadge}`;
+                const sourceBadge = result.source === 'database' ? '<span style="color:#04AA6D;font-weight:bold;">[Dữ liệu hệ thống]</span>' : '<span style="color:#2196f3;font-weight:bold;">[Từ điển mở rộng]</span>';
+                let statusHtml = `✓ Đã tự động điền từ ${sourceBadge}`;
                 if (d.audio_url) {
-                    statusHtml += ` <button type="button" onclick="new Audio('${d.audio_url}').play()" style="background:none;border:none;color:#ff9800;cursor:pointer;font-weight:bold;margin-left:8px;"><i class="fa-solid fa-volume-high"></i> Listen</button>`;
+                    statusHtml += ` <button type="button" onclick="new Audio('${d.audio_url}').play()" style="background:none;border:none;color:#ff9800;cursor:pointer;font-weight:bold;margin-left:8px;"><i class="fa-solid fa-volume-high"></i> Nghe</button>`;
                 }
                 statusEl.style.color = '#04AA6D';
                 statusEl.innerHTML = statusHtml;
             } else {
                 statusEl.style.color = '#f44336';
-                statusEl.innerHTML = `✗ ${result.error || 'Word not found in dictionary.'}`;
+                statusEl.innerHTML = `✗ ${result.error || 'Không tìm thấy từ vựng trong từ điển.'}`;
             }
         } catch (err) {
             statusEl.style.color = '#f44336';
-            statusEl.innerHTML = '✗ Connection error during dictionary lookup.';
+            statusEl.innerHTML = '✗ Không thể kết nối tới dịch vụ từ điển.';
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-book-open"></i> Lookup';
+            btn.innerHTML = '<i class="fa-solid fa-book-open"></i> Tra từ';
         }
     }
-
 </script>
-{% endblock %}
+{% endblock %}

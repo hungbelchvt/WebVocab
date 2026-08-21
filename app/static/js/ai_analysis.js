@@ -1,7 +1,7 @@
 /**
  * WebVocab - AI Learning Analysis Frontend Controller
- * Interacts with /api/ai/learning-analysis to display real database stats
- * alongside Gemini 3.6 Flash structured educational insights.
+ * Interacts with /api/ai/learning-analysis to display real database stats,
+ * Smart Study history, Quiz performance, and structured educational insights from AI.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorState = document.getElementById('ai-analysis-error');
     const errorMsg = document.getElementById('ai-analysis-error-msg');
     const retryBtn = document.getElementById('ai-analysis-retry-btn');
+    const refreshBtn = document.getElementById('ai-analysis-refresh-btn');
     const emptyState = document.getElementById('ai-analysis-empty');
     const resultsContainer = document.getElementById('ai-analysis-results');
 
@@ -18,6 +19,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const statAccuracy = document.getElementById('stat-accuracy');
     const statMastery = document.getElementById('stat-mastery');
     const statDue = document.getElementById('stat-due');
+
+    // Smart Study Analytics Elements
+    const studyEasyCount = document.getElementById('study-easy-count');
+    const studyMediumCount = document.getElementById('study-medium-count');
+    const studyHardCount = document.getElementById('study-hard-count');
+    const studyHardWordsText = document.getElementById('study-hard-words-text');
+    const studyHardTopicsText = document.getElementById('study-hard-topics-text');
+
+    // Normal Quiz Analytics Elements
+    const quizTotalAttempts = document.getElementById('quiz-total-attempts');
+    const quizCorrectCount = document.getElementById('quiz-correct-count');
+    const quizAccuracyRate = document.getElementById('quiz-accuracy-rate');
+    const quizWeakWordsText = document.getElementById('quiz-weak-words-text');
+    const quizStrongWordsText = document.getElementById('quiz-strong-words-text');
 
     // AI Overview Elements
     const aiSummaryText = document.getElementById('ai-summary-text');
@@ -41,6 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (retryBtn) {
         retryBtn.addEventListener('click', loadAnalysis);
+    }
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            loadAnalysis();
+        });
     }
 
     // =================================================================
@@ -85,10 +105,38 @@ document.addEventListener('DOMContentLoaded', () => {
         statMastery.textContent = `${stats.total_mastered_words || 0} (${stats.mastery_percentage || 0}%)`;
         statDue.textContent = stats.total_due_reviews || 0;
 
-        // 2. AI Summary
+        // 2. Smart Study Analytics
+        const smartStudy = stats.smart_study || {};
+        if (studyEasyCount) studyEasyCount.textContent = smartStudy.easy || 0;
+        if (studyMediumCount) studyMediumCount.textContent = smartStudy.medium || 0;
+        if (studyHardCount) studyHardCount.textContent = smartStudy.hard || 0;
+        if (studyHardWordsText) {
+            const hardWords = smartStudy.hard_words || [];
+            studyHardWordsText.textContent = hardWords.length > 0 ? hardWords.join(', ') : 'Chưa có từ nào bị đánh giá Khó';
+        }
+        if (studyHardTopicsText) {
+            const hardTopics = smartStudy.hard_topics || [];
+            studyHardTopicsText.textContent = hardTopics.length > 0 ? hardTopics.join(', ') : 'Chưa ghi nhận chủ đề khó';
+        }
+
+        // 3. Normal Quiz Analytics
+        const quiz = stats.quiz || {};
+        if (quizTotalAttempts) quizTotalAttempts.textContent = quiz.total_attempts || 0;
+        if (quizCorrectCount) quizCorrectCount.textContent = quiz.correct || 0;
+        if (quizAccuracyRate) quizAccuracyRate.textContent = `${quiz.overall_accuracy || 0}%`;
+        if (quizWeakWordsText) {
+            const weakQuiz = quiz.weak_words || [];
+            quizWeakWordsText.textContent = weakQuiz.length > 0 ? weakQuiz.join(', ') : 'Không có từ nào có tỷ lệ sai cao';
+        }
+        if (quizStrongWordsText) {
+            const strongQuiz = quiz.strong_words || [];
+            quizStrongWordsText.textContent = strongQuiz.length > 0 ? strongQuiz.join(', ') : 'Hãy làm thêm quiz để ghi nhận thế mạnh';
+        }
+
+        // 4. AI Summary
         aiSummaryText.textContent = analysis.summary || 'Đang theo dõi và phân tích tiến độ học tập của bạn.';
 
-        // 3. Strengths
+        // 5. Strengths
         strengthsList.innerHTML = '';
         if (analysis.strengths && analysis.strengths.length > 0) {
             analysis.strengths.forEach(str => {
@@ -100,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
             strengthsList.innerHTML = '<li><span style="color: #888;">Tiếp tục làm quiz để phát hiện các thế mạnh nổi bật.</span></li>';
         }
 
-        // 4. Weaknesses
+        // 6. Weaknesses
         weaknessesList.innerHTML = '';
         if (analysis.weaknesses && analysis.weaknesses.length > 0) {
             analysis.weaknesses.forEach(w => {
@@ -112,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             weaknessesList.innerHTML = '<li><span style="color: #888;">Chưa phát hiện điểm yếu nghiêm trọng nào.</span></li>';
         }
 
-        // 5. Review Priorities (Tags)
+        // 7. Review Priorities (Tags)
         reviewPrioritiesWrap.innerHTML = '';
         if (analysis.review_priorities && analysis.review_priorities.length > 0) {
             analysis.review_priorities.forEach(word => {
@@ -129,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reviewPrioritiesWrap.innerHTML = '<span style="color: #888; font-size: 0.9rem;">Không có từ vựng khẩn cấp cần ôn.</span>';
         }
 
-        // 6. Weak Words Detailed Diagnosis
+        // 8. Weak Words Detailed Diagnosis
         weakWordsList.innerHTML = '';
         if (analysis.weak_words && analysis.weak_words.length > 0) {
             analysis.weak_words.forEach(item => {
@@ -148,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
             weakWordsList.innerHTML = '<p style="color: #888; font-style: italic;">Tuyệt vời! Bạn không có từ vựng nào bị đánh giá là yếu tại thời điểm này.</p>';
         }
 
-        // 7. Topic Performance Cards
+        // 9. Topic Performance Cards
         weakTopicsList.innerHTML = '';
         if (stats.topic_stats && stats.topic_stats.length > 0) {
             topicSection.style.display = 'block';
@@ -185,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
             topicSection.style.display = 'none';
         }
 
-        // 8. Actionable Insights
+        // 10. Actionable Insights
         insightsList.innerHTML = '';
         if (analysis.learning_insights && analysis.learning_insights.length > 0) {
             analysis.learning_insights.forEach(ins => {
@@ -217,3 +265,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial Load
     loadAnalysis();
 });
+

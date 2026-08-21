@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Public Library - Vocab App{% endblock %}
+{% block title %}Thư viện Chủ đề Từ vựng - WebVocab{% endblock %}
 
 {% block content %}
 <div class="library-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
     <div>
-        <h1 style="margin-bottom: 5px;">Public Vocabulary Decks</h1>
-        <p style="color: #666;">Select a topic to start learning.</p>
+        <h1 style="margin-bottom: 5px;">Thư viện Chủ đề Từ vựng</h1>
+        <p style="color: #666;">Chọn một chủ đề để bắt đầu học và luyện tập flashcard.</p>
     </div>
 
     {% if current_user.is_authenticated %}
     <div style="margin-top: 20px;">
         <a href="{{ url_for('create_topic') }}" class="btn btn-primary" style="background-color: #04AA6D; border: none; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; display: inline-block;">
-            <i class="fa-solid fa-plus"></i> Create New Deck
+            <i class="fa-solid fa-plus"></i> Tạo chủ đề mới
         </a>
     </div>
     {% endif %}
@@ -22,9 +22,9 @@
 <div class="w3-card" style="margin-bottom: 30px; border-left: 4px solid #04AA6D; padding: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <h3 style="margin: 0; color: #333; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
-            <i class="fa-solid fa-book-bookmark" style="color: #04AA6D;"></i> Quick Dictionary Lookup
+            <i class="fa-solid fa-book-bookmark" style="color: #04AA6D;"></i> Tra cứu từ điển nhanh
         </h3>
-        <span style="font-size: 0.85rem; color: #666;">Powered by PostgreSQL + Free Dictionary API</span>
+        <span style="font-size: 0.85rem; color: #666;">Hỗ trợ dữ liệu nội bộ & Từ điển trực tuyến</span>
     </div>
     
     <form id="dict-search-form" onsubmit="handleDictSearch(event)" style="display: flex; gap: 10px;">
@@ -33,13 +33,13 @@
                 type="text" 
                 id="dict-search-input" 
                 class="form-control" 
-                placeholder="Search any English word (e.g. resilient, algorithm, commute, itinerary...)"
+                placeholder="Nhập từ tiếng Anh cần tra (ví dụ: resilient, algorithm, commute, itinerary...)"
                 style="padding: 12px 15px; border-radius: 6px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;"
                 required
             >
         </div>
         <button type="submit" id="dict-search-btn" class="btn" style="background-color: #04AA6D; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap;">
-            <i class="fa-solid fa-magnifying-glass"></i> Search
+            <i class="fa-solid fa-magnifying-glass"></i> Tra cứu
         </button>
     </form>
 
@@ -53,8 +53,8 @@
         <div class="w3-card topic-card">
             <i class="fa-solid fa-folder-open" style="font-size: 2rem; color: #04AA6D;"></i>
             <h3>{{ topic.name }}</h3>
-            <p>{{ topic.words|length }} Words</p>
-            <a href="{{ url_for('view_flashcards', topic_id=topic.id) }}" class="btn btn-primary">View Cards</a>
+            <p>{{ topic.words|length }} từ vựng</p>
+            <a href="{{ url_for('view_flashcards', topic_id=topic.id) }}" class="btn btn-primary">Xem Flashcard</a>
         </div>
     {% endfor %}
 </div>
@@ -70,9 +70,9 @@ async function handleDictSearch(e) {
     const btn = document.getElementById('dict-search-btn');
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Searching...';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tra cứu...';
     resultBox.style.display = 'block';
-    resultBox.innerHTML = '<p style="color: #666; margin: 0;"><i class="fa-solid fa-spinner fa-spin"></i> Looking up word...</p>';
+    resultBox.innerHTML = '<p style="color: #666; margin: 0;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tìm kiếm thông tin từ vựng...</p>';
 
     try {
         const response = await fetch(`/api/dictionary/${encodeURIComponent(word)}`);
@@ -81,16 +81,16 @@ async function handleDictSearch(e) {
         if (result.success && result.data) {
             const d = result.data;
             const sourceBadge = result.source === 'database' 
-                ? '<span style="background: #e8f5e9; color: #2e7d32; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">In Database</span>'
-                : '<span style="background: #e3f2fd; color: #1565c0; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">Free Dictionary API</span>';
+                ? '<span style="background: #e8f5e9; color: #2e7d32; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">Có trong cơ sở dữ liệu</span>'
+                : '<span style="background: #e3f2fd; color: #1565c0; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">Từ điển trực tuyến</span>';
 
             let audioBtn = '';
             if (d.audio_url) {
-                audioBtn = `<button type="button" onclick="new Audio('${d.audio_url}').play()" style="background: #ff9800; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; margin-left: 10px;"><i class="fa-solid fa-volume-high"></i> Listen</button>`;
+                audioBtn = `<button type="button" onclick="new Audio('${d.audio_url}').play()" style="background: #ff9800; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; margin-left: 10px;"><i class="fa-solid fa-volume-high"></i> Nghe phát âm</button>`;
             }
 
-            let topicInfo = d.topic_name ? `<p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #666;">Deck: <strong>${d.topic_name}</strong></p>` : '';
-            let synonymsHtml = d.synonyms && d.synonyms.length > 0 ? `<p style="margin: 8px 0 0 0; font-size: 0.9rem;"><strong>Synonyms:</strong> <span style="color: #04AA6D;">${d.synonyms.join(', ')}</span></p>` : '';
+            let topicInfo = d.topic_name ? `<p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #666;">Chủ đề: <strong>${d.topic_name}</strong></p>` : '';
+            let synonymsHtml = d.synonyms && d.synonyms.length > 0 ? `<p style="margin: 8px 0 0 0; font-size: 0.9rem;"><strong>Từ đồng nghĩa (Synonyms):</strong> <span style="color: #04AA6D;">${d.synonyms.join(', ')}</span></p>` : '';
             let exampleHtml = d.example_sentence ? `<p style="margin: 8px 0 0 0; font-style: italic; color: #444; background: #fff; padding: 8px 12px; border-radius: 4px; border-left: 3px solid #04AA6D;">"${d.example_sentence}"</p>` : '';
 
             resultBox.innerHTML = `
@@ -106,20 +106,21 @@ async function handleDictSearch(e) {
                     <div>${sourceBadge}</div>
                 </div>
                 <div style="font-size: 1rem; line-height: 1.6; color: #333;">
-                    <p style="margin: 0 0 6px 0;"><strong>Definition:</strong> ${d.definition || 'No definition available.'}</p>
+                    <p style="margin: 0 0 6px 0;"><strong>Định nghĩa:</strong> ${d.definition || 'Không có định nghĩa sẵn có.'}</p>
                     ${exampleHtml}
                     ${synonymsHtml}
                 </div>
             `;
         } else {
-            resultBox.innerHTML = `<p style="color: #f44336; margin: 0;"><i class="fa-solid fa-circle-exclamation"></i> ${result.error || 'Word not found.'}</p>`;
+            resultBox.innerHTML = `<p style="color: #f44336; margin: 0;"><i class="fa-solid fa-circle-exclamation"></i> ${result.error || 'Không tìm thấy từ vựng này.'}</p>`;
         }
     } catch (err) {
-        resultBox.innerHTML = '<p style="color: #f44336; margin: 0;"><i class="fa-solid fa-circle-exclamation"></i> Unable to connect to dictionary service. Please try again later.</p>';
+        resultBox.innerHTML = '<p style="color: #f44336; margin: 0;"><i class="fa-solid fa-circle-exclamation"></i> Không thể kết nối đến dịch vụ từ điển. Vui lòng thử lại sau.</p>';
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Search';
+        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Tra cứu';
     }
 }
 </script>
-{% endblock %}
+{% endblock %}
+

@@ -290,9 +290,11 @@ class TestPhase2(unittest.TestCase):
         self._login_client()
         resp = self.client.get('/ai/vocabulary')
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'AI Vocabulary Assistant', resp.data)
-        self.assertIn(b'Gemini 3.6 Flash', resp.data)
+        self.assertIn(b'Tr\xe1\xbb\xa3 l\xc3\xbd T\xe1\xbb\xab v\xe1\xbb\xb1ng AI', resp.data)
+        self.assertIn(b'ai-badge', resp.data)
+        self.assertNotIn(b'Gemini 3.6 Flash', resp.data)
         self.assertIn(b'ai_vocabulary.js', resp.data)
+
 
     def test_ai_vocabulary_page_requires_auth(self):
         """Test that unauthenticated access to /ai/vocabulary redirects to login."""

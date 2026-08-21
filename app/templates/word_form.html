@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Add Word - Vocab App{% endblock %}
+{% block title %}Thêm từ vựng - WebVocab{% endblock %}
 
 {% block content %}
 <div class="form-container card" style="max-width: 500px; margin: 20px auto; padding: 30px;">
-    <h2>Add New Word</h2>
+    <h2>Thêm từ vựng mới</h2>
     
     <form method="POST" action="">
         {{ form.hidden_tag() }} 
@@ -35,8 +35,8 @@
         </div>
         
         <div>
-            {{ form.submit(class="btn btn-primary", style="width: 100%;") }}
+            {{ form.submit(class="btn btn-primary", style="width: 100%; background: #04AA6D; border: none; padding: 12px; border-radius: 5px; color: white; cursor: pointer; font-weight: bold;") }}
         </div>
     </form>
 </div>
-{% endblock %}
+{% endblock %}
