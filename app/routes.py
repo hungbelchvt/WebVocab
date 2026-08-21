@@ -15,6 +15,14 @@ from flask import abort
 import csv
 import io
 from flask import session
+from app.services.dictionary_service import (
+    dictionary_service,
+    DictionaryError,
+    DictionaryNotFoundError,
+    DictionaryTimeoutError,
+    DictionaryAPIError
+)
+
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -670,4 +678,111 @@ def quiz_results_view():
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint for deployment monitoring (Render)."""
-    return jsonify({"status": "ok"}), 200
+    return jsonify({"status": "ok"}), 200
+
+
+@app.route('/api/dictionary/<string:word>', methods=['GET'])
+def api_dictionary_lookup(word):
+    """
+    Dictionary lookup endpoint.
+    1. Validates the word.
+    2. Checks if the word exists in PostgreSQL database.
+    3. If found, returns database vocabulary data (with audio enrichment if available).
+    4. If not found in DB, queries Free Dictionary API and normalizes the response.
+    """
+    try:
+        clean_word = dictionary_service.validate_word(word)
+    except DictionaryError as e:
+        return jsonify({
+            "success": False,
+            "found": False,
+            "error": e.message
+        }), e.status_code
+
+    # 1. Search in local database
+    db_word = Word.query.filter(func.lower(Word.term) == func.lower(clean_word)).first()
+
+    if db_word:
+        # Try to retrieve audio if available from Free Dictionary API
+        audio_url = ""
+        try:
+            dict_data = dictionary_service.lookup(clean_word)
+            audio_url = dict_data.get("audio_url", "")
+        except Exception:
+            pass
+
+        synonyms_list = [s.strip() for s in db_word.synonyms.split(",") if s.strip()] if db_word.synonyms else []
+        antonyms_list = [a.strip() for a in db_word.antonyms.split(",") if a.strip()] if db_word.antonyms else []
+
+        return jsonify({
+            "success": True,
+            "found": True,
+            "source": "database",
+            "data": {
+                "id": db_word.id,
+                "term": db_word.term,
+                "ipa": db_word.ipa or "",
+                "audio_url": audio_url,
+                "definition": db_word.definition,
+                "example_sentence": db_word.example_sentence or "",
+                "synonyms": synonyms_list,
+                "antonyms": antonyms_list,
+                "difficulty": db_word.difficulty or "medium",
+                "topic_id": db_word.topic_id,
+                "topic_name": db_word.topic_category.name if db_word.topic_category else None,
+                "in_database": True
+            }
+        }), 200
+
+    # 2. Query Free Dictionary API
+    try:
+        dict_data = dictionary_service.lookup(clean_word)
+        return jsonify({
+            "success": True,
+            "found": True,
+            "source": "dictionary_api",
+            "data": {
+                "term": dict_data["term"],
+                "ipa": dict_data.get("ipa", ""),
+                "audio_url": dict_data.get("audio_url", ""),
+                "part_of_speech": dict_data.get("part_of_speech", ""),
+                "definition": dict_data.get("definition", ""),
+                "example_sentence": dict_data.get("example_sentence", ""),
+                "synonyms": dict_data.get("synonyms", []),
+                "antonyms": dict_data.get("antonyms", []),
+                "meanings": dict_data.get("meanings", []),
+                "difficulty": "medium",
+                "in_database": False,
+                "topic_id": None,
+                "topic_name": None
+            }
+        }), 200
+
+    except DictionaryNotFoundError:
+        return jsonify({
+            "success": False,
+            "found": False,
+            "error": f"Không tìm thấy định nghĩa cho từ '{clean_word}' trong từ điển."
+        }), 404
+
+    except DictionaryTimeoutError:
+        return jsonify({
+            "success": False,
+            "found": False,
+            "error": "Yêu cầu tra từ điển bị quá thời gian (timeout). Vui lòng thử lại sau."
+        }), 504
+
+    except DictionaryAPIError as e:
+        return jsonify({
+            "success": False,
+            "found": False,
+            "error": f"Lỗi dịch vụ từ điển bên ngoài: {e.message}"
+        }), e.status_code
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "found": False,
+            "error": "Đã xảy ra lỗi không xác định khi tra cứu từ điển."
+        }), 500
+

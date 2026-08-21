@@ -1,6 +1,6 @@
-# WebVocab Deployment Guide
+# WebVocab Deployment & Administration Guide
 
-This guide describes how to deploy **WebVocab** to **Render** with a managed **PostgreSQL** database.
+This guide describes how to deploy **WebVocab** to **Render** with a managed **PostgreSQL** database, run the database seed system, and verify all services.
 
 ---
 
@@ -64,7 +64,81 @@ Under the **Environment Variables** tab of your Render Web Service, add the foll
 
 ---
 
-## 3. Health & Monitoring
+## 3. Database Initialization & Seeding
+
+The application automatically provisions all PostgreSQL tables on startup. To populate the database with the initial curriculum of **15 topics** and **525 vocabulary items**:
+
+### Running the Seed Command
+
+#### Locally:
+```bash
+python seed.py
+```
+
+#### On Render (via Shell):
+1. In the Render Dashboard, go to your Web Service.
+2. Open the **Shell** tab.
+3. Run:
+   ```bash
+   python seed.py
+   ```
+
+*(Note: The seed script is completely idempotent. Running it multiple times will safely update existing records without creating duplicates).*
+
+### Verifying Seed Data
+To verify that topics and vocabulary have been successfully inserted into PostgreSQL, you can run:
+```bash
+python -c "from app import create_app; from app.models import Topic, Word; app = create_app(); ctx = app.app_context(); ctx.push(); print(f'Total Topics: {Topic.query.count()}, Total Words: {Word.query.count()}')"
+```
+**Expected Output:**
+```text
+Total Topics: 15, Total Words: 525
+```
+
+---
+
+## 4. Free Dictionary API Integration
+
+WebVocab includes a dedicated service layer and endpoint integrating the [Free Dictionary API](https://dictionaryapi.dev/):
+
+### Endpoint:
+```http
+GET /api/dictionary/<word>
+```
+
+### Features:
+- **Local Database Priority**: First searches PostgreSQL database for matching vocabulary.
+- **External Fallback**: If not found in DB, queries `api.dictionaryapi.dev` and normalizes the payload.
+- **Audio Extraction**: Extracts native pronunciation audio (`.mp3`) URL when available.
+- **Error Handling**: Gracefully handles 404 (Not Found), 504 (Timeout), and network issues.
+
+### Testing the Dictionary Endpoint:
+```bash
+curl http://127.0.0.1:5000/api/dictionary/resilient
+```
+**Sample JSON Response:**
+```json
+{
+  "success": true,
+  "found": true,
+  "source": "database",
+  "data": {
+    "term": "Resilient",
+    "ipa": "rɪˈzɪliənt",
+    "audio_url": "https://api.dictionaryapi.dev/media/pronunciations/en/resilient-us.mp3",
+    "definition": "Able to withstand or recover quickly from difficult conditions.",
+    "example_sentence": "Children's immune systems are remarkably resilient when well-nourished.",
+    "synonyms": ["tough", "adaptable"],
+    "antonyms": ["fragile", "vulnerable"],
+    "topic_name": "Health & Medicine",
+    "in_database": true
+  }
+}
+```
+
+---
+
+## 5. Health & Monitoring
 
 Render will monitor the web service health using the built-in health endpoint:
 
@@ -75,7 +149,7 @@ You can set `/health` as the **Health Check Path** under Web Service Settings in
 
 ---
 
-## 4. Local Development
+## 6. Local Development
 
 To run WebVocab locally:
 
@@ -93,7 +167,11 @@ To run WebVocab locally:
    ```bash
    cp .env.example .env
    ```
-5. Run the application:
+5. Seed initial data:
+   ```bash
+   python seed.py
+   ```
+6. Run the application:
    ```bash
    python run.py
    ```

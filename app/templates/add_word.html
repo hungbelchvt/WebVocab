@@ -17,22 +17,28 @@
 
             <div class="form-group" style="margin-bottom: 15px;">
                 {{ form.term.label(class="form-label") }}
-                {{ form.term(class="form-control", placeholder="e.g., Apple") }}
+                <div style="display: flex; gap: 8px;">
+                    {{ form.term(class="form-control", placeholder="e.g., Apple", id="term", style="flex: 1;") }}
+                    <button type="button" id="dict-lookup-btn" class="btn" style="background-color: #2196f3; color: white; border: none; padding: 10px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; white-space: nowrap;" onclick="lookupWordInDict()">
+                        <i class="fa-solid fa-book-open"></i> Lookup
+                    </button>
+                </div>
+                <div id="dict-status" style="font-size: 0.85rem; margin-top: 6px; display: none;"></div>
             </div>
 
             <div class="form-group" style="margin-bottom: 15px;">
                 {{ form.ipa.label(class="form-label") }}
-                {{ form.ipa(class="form-control", placeholder="e.g., ˈæpəl") }}
+                {{ form.ipa(class="form-control", placeholder="e.g., ˈæpəl", id="ipa") }}
             </div>
 
             <div class="form-group" style="margin-bottom: 15px;">
                 {{ form.definition.label(class="form-label") }}
-                {{ form.definition(class="form-control", placeholder="e.g., A red or green fruit.", rows="3") }}
+                {{ form.definition(class="form-control", placeholder="e.g., A red or green fruit.", rows="3", id="definition") }}
             </div>
 
             <div class="form-group" style="margin-bottom: 20px;">
                 {{ form.example_sentence.label(class="form-label") }}
-                {{ form.example_sentence(class="form-control", placeholder="e.g., I ate an apple today.", rows="2") }}
+                {{ form.example_sentence(class="form-control", placeholder="e.g., I ate an apple today.", rows="2", id="example_sentence") }}
             </div>
 
             <div style="display: flex; gap: 10px; margin-top: 10px;">
@@ -142,6 +148,55 @@
         document.getElementById('form-title').innerText = "Add a Term";
         document.getElementById('submit-btn').value = "Save Word";
         document.getElementById('cancel-btn').style.display = "none";
+        document.getElementById('dict-status').style.display = "none";
     }
+
+    async function lookupWordInDict() {
+        const termInput = document.getElementById('term');
+        const word = termInput.value.trim();
+        if (!word) {
+            alert('Please enter a word to look up.');
+            termInput.focus();
+            return;
+        }
+
+        const statusEl = document.getElementById('dict-status');
+        const btn = document.getElementById('dict-lookup-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Looking up...';
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#666';
+        statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Searching dictionary & database...';
+
+        try {
+            const response = await fetch(`/api/dictionary/${encodeURIComponent(word)}`);
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                const d = result.data;
+                if (d.ipa) document.getElementById('ipa').value = d.ipa.replace(/^\/|\/$/g, '');
+                if (d.definition) document.getElementById('definition').value = d.definition;
+                if (d.example_sentence) document.getElementById('example_sentence').value = d.example_sentence;
+
+                const sourceBadge = result.source === 'database' ? '<span style="color:#04AA6D;font-weight:bold;">[Database]</span>' : '<span style="color:#2196f3;font-weight:bold;">[Free Dictionary API]</span>';
+                let statusHtml = `✓ Auto-filled from ${sourceBadge}`;
+                if (d.audio_url) {
+                    statusHtml += ` <button type="button" onclick="new Audio('${d.audio_url}').play()" style="background:none;border:none;color:#ff9800;cursor:pointer;font-weight:bold;margin-left:8px;"><i class="fa-solid fa-volume-high"></i> Listen</button>`;
+                }
+                statusEl.style.color = '#04AA6D';
+                statusEl.innerHTML = statusHtml;
+            } else {
+                statusEl.style.color = '#f44336';
+                statusEl.innerHTML = `✗ ${result.error || 'Word not found in dictionary.'}`;
+            }
+        } catch (err) {
+            statusEl.style.color = '#f44336';
+            statusEl.innerHTML = '✗ Connection error during dictionary lookup.';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-book-open"></i> Lookup';
+        }
+    }
+
 </script>
 {% endblock %}

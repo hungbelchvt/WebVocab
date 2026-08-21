@@ -12,6 +12,15 @@ from app.services.ai_service import (
     AIValidationError
 )
 
+from app.services.dictionary_service import (
+    DictionaryService,
+    dictionary_service,
+    DictionaryError,
+    DictionaryNotFoundError,
+    DictionaryTimeoutError,
+    DictionaryAPIError
+)
+
 __all__ = [
     'AIService',
     'ai_service',
@@ -19,5 +28,12 @@ __all__ = [
     'AIConfigurationError',
     'AITimeoutError',
     'AIResponseError',
-    'AIValidationError'
+    'AIValidationError',
+    'DictionaryService',
+    'dictionary_service',
+    'DictionaryError',
+    'DictionaryNotFoundError',
+    'DictionaryTimeoutError',
+    'DictionaryAPIError'
 ]
+
