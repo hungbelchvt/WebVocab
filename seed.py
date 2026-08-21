@@ -583,8 +583,40 @@ VOCAB_DATA = {
 
 import time
 import logging
+from sqlalchemy import text, inspect
 
 logger = logging.getLogger(__name__)
+
+
+def ensure_schema_compatibility(app=None):
+    """
+    Ensures existing database tables match required nullability constraints.
+    In PostgreSQL, alters existing 'topic.user_id' and 'word.user_id' columns to DROP NOT NULL
+    so system vocabulary with user_id=None can be inserted into databases created prior to this change.
+    Idempotent and safe to run on every startup.
+    """
+    if app is None:
+        app = create_app()
+
+    with app.app_context():
+        engine = db.engine
+        dialect_name = engine.dialect.name
+
+        if dialect_name in ('postgresql', 'postgres'):
+            logger.info("[DB] Checking PostgreSQL schema compatibility for topic.user_id and word.user_id...")
+            with engine.connect() as conn:
+                inspector = inspect(engine)
+                table_names = inspector.get_table_names()
+
+                if 'topic' in table_names:
+                    conn.execute(text("ALTER TABLE topic ALTER COLUMN user_id DROP NOT NULL;"))
+                    logger.info("[DB] Ensured 'topic.user_id' allows NULL.")
+
+                if 'word' in table_names:
+                    conn.execute(text("ALTER TABLE word ALTER COLUMN user_id DROP NOT NULL;"))
+                    logger.info("[DB] Ensured 'word.user_id' allows NULL.")
+
+                conn.commit()
 
 
 def seed_database(app=None, verbose=True):
@@ -673,7 +705,6 @@ def seed_database(app=None, verbose=True):
                     if not existing_word.antonyms and antonyms:
                         existing_word.antonyms = antonyms
 
-
         db.session.commit()
         summary_msg = (f"[SEED] Seeding complete: inserted {total_topics_seeded} new topics, "
                        f"{total_words_seeded} new words.")
@@ -691,16 +722,21 @@ def auto_init_and_seed(app, max_retries=3, retry_delay=2):
     Called once during application startup.
 
     Flow:
-        1. db.create_all() — ensures all tables exist
-        2. seed_database() — inserts missing system topics/words, skips if already seeded
+        1. ensure_schema_compatibility(app) — alters existing PostgreSQL tables to allow NULL user_id
+        2. db.create_all() — ensures all tables exist
+        3. seed_database() — inserts missing system topics/words, skips if already seeded
     """
     for attempt in range(1, max_retries + 1):
         try:
             with app.app_context():
                 logger.info(f"[DB] Initializing database schema (attempt {attempt}/{max_retries})...")
+                # 1. Ensure schema compatibility for existing PostgreSQL tables
+                ensure_schema_compatibility(app)
+                # 2. Create any missing tables
                 db.create_all()
                 logger.info("[DB] Database schema ready.")
 
+                # 3. Auto-seed system vocabulary
                 logger.info("[SEED] Checking system vocabulary...")
                 seed_database(app=app, verbose=False)
                 logger.info("[APP] WebVocab startup auto-seed complete.")
@@ -715,4 +751,5 @@ def auto_init_and_seed(app, max_retries=3, retry_delay=2):
 
 
 if __name__ == '__main__':
+    ensure_schema_compatibility()
     seed_database(verbose=True)

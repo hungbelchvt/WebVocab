@@ -309,7 +309,54 @@ class TestDictionaryAndSeed(unittest.TestCase):
         self.assertIsNotNone(user_word_after)
         self.assertEqual(user_word_after.definition, 'A process or set of rules to be followed in calculations.')
 
+    def test_system_topic_and_word_nullable_user_id_regression(self):
+        """
+        Regression Test: Verify system topics and words can be created with user_id=None
+        without violating NOT NULL constraints on PostgreSQL or SQLite.
+        """
+        # 1. Test direct insertion of system topic with user_id=None
+        system_top = Topic(name="Regression System Topic", user_id=None)
+        db.session.add(system_top)
+        db.session.commit()
+
+        self.assertIsNotNone(system_top.id)
+        self.assertIsNone(system_top.user_id)
+
+        # 2. Test direct insertion of system word with user_id=None
+        system_w = Word(
+            term="ubiquity",
+            ipa="/juːˈbɪkwəti/",
+            definition="The state of being everywhere.",
+            example_sentence="The ubiquity of smartphones is undeniable.",
+            synonyms="omnipresence",
+            antonyms="rarity",
+            difficulty="medium",
+            topic_id=system_top.id,
+            user_id=None
+        )
+        db.session.add(system_w)
+        db.session.commit()
+
+        self.assertIsNotNone(system_w.id)
+        self.assertIsNone(system_w.user_id)
+        self.assertEqual(system_w.topic_id, system_top.id)
+
+    def test_ensure_schema_compatibility_and_auto_init_and_seed(self):
+        """Verify ensure_schema_compatibility and auto_init_and_seed run without error."""
+        from seed import ensure_schema_compatibility, auto_init_and_seed
+
+        # ensure_schema_compatibility must execute cleanly and idempotently
+        ensure_schema_compatibility(self.app)
+
+        # auto_init_and_seed must execute cleanly and populate 15 topics / 525 words
+        success = auto_init_and_seed(self.app)
+        self.assertTrue(success)
+
+        self.assertGreaterEqual(Topic.query.filter_by(user_id=None).count(), 15)
+        self.assertGreaterEqual(Word.query.filter_by(user_id=None).count(), 525)
+
 
 if __name__ == '__main__':
     unittest.main()
+
 
