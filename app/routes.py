@@ -665,3 +665,9 @@ def quiz_results_view():
         return redirect(url_for('dashboard'))
 
     return render_template('quiz_results.html', data=quiz_data)
+
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for deployment monitoring (Render)."""
+    return jsonify({"status": "ok"}), 200

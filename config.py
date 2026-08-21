@@ -6,13 +6,18 @@ load_dotenv()
 
 
 class Config:
-    # Use an environment variable for security, with a fallback
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'a-very-secret-key'
+    # Secret key configuration
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    if not SECRET_KEY:
+        # Require SECRET_KEY in production environments (e.g. Render)
+        if os.environ.get('RENDER') or os.environ.get('FLASK_ENV') == 'production' or os.environ.get('ENV') == 'production':
+            raise ValueError("SECRET_KEY environment variable must be set in production.")
+        SECRET_KEY = 'dev-insecure-secret-key-change-in-production'
 
-    # Get the database URL from the environment, or use local SQLite
+    # Database URL: Read from environment, or use local SQLite fallback
     database_url = os.environ.get('DATABASE_URL', 'sqlite:///vocab.db')
 
-    # SQLAlchemy 1.4+ requires 'postgresql://' instead of 'postgres://'
+    # SQLAlchemy 1.4+ and 2.0+ require 'postgresql://' instead of legacy 'postgres://' (standard on Render)
     if database_url and database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
 

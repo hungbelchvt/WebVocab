@@ -23,8 +23,15 @@ def create_app(config_class=Config):
             importlib.reload(sys.modules['app.routes'])
         else:
             from app import routes
+
         from app.ai_routes import ai_bp, ai_ui_bp
-        app.register_blueprint(ai_bp)
-        app.register_blueprint(ai_ui_bp)
-        return app
+        if 'ai' not in app.blueprints:
+            app.register_blueprint(ai_bp)
+        if 'ai_ui' not in app.blueprints:
+            app.register_blueprint(ai_ui_bp)
+
+        # Automatically create tables if they do not exist
+        db.create_all()
+
+    return app
 
