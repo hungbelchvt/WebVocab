@@ -9,8 +9,10 @@
     {% if words|length == 0 %}
         <div style="margin-top: 40px;">
             <h3>Bạn đã hoàn thành tất cả từ vựng cần ôn hôm nay! 🎉</h3>
-            <p>Hãy quay lại sau hoặc ghi danh thêm các chủ đề mới để tiếp tục học.</p>
-            <a href="{{ url_for('flashcards') }}" class="btn btn-primary" style="background: #04AA6D; margin-top: 15px; display: inline-block;">Khám phá Thư viện Chủ đề</a>
+            <p style="color: #666; margin-bottom: 20px;">Hãy quay lại sau hoặc ghi danh thêm các chủ đề mới để tiếp tục học.</p>
+            <a href="{{ url_for('flashcards') }}" class="btn btn-primary btn-library-action">
+                <i class="fa-solid fa-book-open"></i> Khám phá Thư viện Chủ đề
+            </a>
         </div>
     {% else %}
         <div id="study-card" class="w3-card" style="margin: 0 auto; padding: 40px; border: 2px solid #04AA6D; border-radius: 10px; cursor: pointer; min-height: 250px; display: flex; flex-direction: column; justify-content: center;">

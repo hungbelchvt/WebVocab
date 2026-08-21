@@ -249,3 +249,176 @@ body.app-layout {
 .btn-block:hover {
     background: #038857;
 }
+
+/* --- REUSABLE BUTTON SYSTEM --- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none !important;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-sizing: border-box;
+    line-height: 1.4;
+    outline: none;
+}
+
+.btn:focus-visible {
+    outline: 2px solid #04AA6D;
+    outline-offset: 2px;
+}
+
+.btn-primary {
+    background-color: #04AA6D;
+    color: #ffffff !important;
+    border-color: #04AA6D;
+    box-shadow: 0 2px 5px rgba(4, 170, 109, 0.25);
+}
+
+.btn-primary:hover {
+    background-color: #038d5a;
+    border-color: #038d5a;
+    color: #ffffff !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(4, 170, 109, 0.35);
+    text-decoration: none !important;
+}
+
+.btn-primary:active {
+    background-color: #027349;
+    border-color: #027349;
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(4, 170, 109, 0.2);
+}
+
+/* --- TOPIC LIBRARY & TOPIC CARDS --- */
+.topic-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 22px;
+    margin-top: 25px;
+}
+
+.topic-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    min-height: 210px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    box-sizing: border-box;
+    margin-bottom: 0;
+}
+
+.topic-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
+    border-color: #bbf7d0;
+}
+
+.topic-card-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.topic-card-icon {
+    font-size: 1.8rem;
+    color: #04AA6D;
+    line-height: 1;
+}
+
+.topic-card-body {
+    width: 100%;
+    margin-bottom: 18px;
+    flex-grow: 1;
+}
+
+.topic-card-title {
+    margin: 0 0 6px 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.35;
+}
+
+.topic-card-count {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.topic-card-action {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 9px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    background-color: #04AA6D;
+    color: #ffffff !important;
+    text-decoration: none !important;
+    border: none;
+    box-shadow: 0 2px 5px rgba(4, 170, 109, 0.2);
+    transition: all 0.2s ease-in-out;
+    margin-top: auto;
+}
+
+.topic-card-action:hover {
+    background-color: #038d5a;
+    color: #ffffff !important;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(4, 170, 109, 0.35);
+    text-decoration: none !important;
+}
+
+.topic-card-action:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(4, 170, 109, 0.2);
+}
+
+.topic-card-action i {
+    transition: transform 0.2s ease;
+    font-size: 0.85rem;
+}
+
+.topic-card-action:hover i {
+    transform: translateX(3px);
+}
+
+/* --- EMPTY SRS ACTION BUTTON --- */
+.btn-library-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 9px;
+    font-size: 0.98rem;
+    font-weight: 600;
+    margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+    .topic-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}
