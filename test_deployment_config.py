@@ -122,6 +122,38 @@ class TestDeploymentConfiguration(unittest.TestCase):
         user_ddl = str(CreateTable(User.__table__).compile(dialect=dialect))
         self.assertIn("VARCHAR(256)", user_ddl)
 
+    def test_gunicorn_and_procfile_configuration(self):
+        """Verify Procfile and gunicorn.conf.py are configured for Render Free with 1 worker and 2 threads."""
+        procfile_path = os.path.join(os.path.dirname(__file__), 'Procfile')
+        self.assertTrue(os.path.exists(procfile_path), "Procfile must exist in repository root.")
+        with open(procfile_path, 'r', encoding='utf-8') as f:
+            procfile_content = f.read()
+        self.assertIn('--workers 1', procfile_content)
+        self.assertIn('--threads 2', procfile_content)
+        self.assertIn('--timeout 120', procfile_content)
+        self.assertIn('"app:create_app()"', procfile_content)
+
+        gunicorn_conf_path = os.path.join(os.path.dirname(__file__), 'gunicorn.conf.py')
+        self.assertTrue(os.path.exists(gunicorn_conf_path), "gunicorn.conf.py must exist.")
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("gunicorn_conf", gunicorn_conf_path)
+        gunicorn_conf = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gunicorn_conf)
+        self.assertEqual(gunicorn_conf.workers, 1)
+        self.assertEqual(gunicorn_conf.threads, 2)
+        self.assertEqual(gunicorn_conf.timeout, 120)
+
+    def test_ai_service_client_caching(self):
+        """Verify AIService reuses client instance to prevent memory leaks."""
+        from app.services.ai_service import ai_service
+        with patch.dict(os.environ, {'GEMINI_API_KEY': 'test-valid-api-key-value'}, clear=False):
+            with patch('google.genai.Client') as mock_client_cls:
+                mock_client_cls.return_value = 'mock_client_instance'
+                client1 = ai_service._get_client()
+                client2 = ai_service._get_client()
+                self.assertEqual(client1, client2)
+                self.assertEqual(mock_client_cls.call_count, 1)
+
 
 if __name__ == '__main__':
     unittest.main()

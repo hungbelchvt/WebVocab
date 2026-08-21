@@ -40,7 +40,7 @@ This guide describes how to deploy **WebVocab** to **Render** with a managed **P
      ```
    - **Start Command**:
      ```bash
-     gunicorn "app:create_app()"
+     gunicorn --workers 1 --threads 2 --timeout 120 "app:create_app()"
      ```
 
 ---

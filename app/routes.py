@@ -375,13 +375,18 @@ def quiz_run():
         return redirect(url_for('quiz_setup'))
 
     selected_progress = random.sample(available_progress, min(count, len(available_progress)))
-    all_words = Word.query.all()
+    
+    # Query only words from the relevant topics instead of loading entire database
+    selected_topic_ids = list({p.word.topic_id for p in selected_progress if p.word and p.word.topic_id})
+    relevant_words = Word.query.filter(Word.topic_id.in_(selected_topic_ids)).all() if selected_topic_ids else []
 
     quiz_data = []
     for p in selected_progress:
         target_word = p.word
+        if not target_word:
+            continue
 
-        same_topic_words = [w for w in all_words if w.topic_id == target_word.topic_id and w.id != target_word.id]
+        same_topic_words = [w for w in relevant_words if w.topic_id == target_word.topic_id and w.id != target_word.id]
         wrong_choices = random.sample(same_topic_words, min(3, len(same_topic_words)))
 
         options = wrong_choices + [target_word]

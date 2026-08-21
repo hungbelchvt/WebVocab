@@ -8,6 +8,7 @@ directly from the database. All calculations are deterministic and computed befo
 from datetime import datetime, timezone
 from typing import Dict, Any, List
 from collections import defaultdict
+from sqlalchemy import func, case
 from app.models import db, User, Topic, Word, WordProgress, SmartStudyReview, QuizAttempt
 
 
@@ -120,113 +121,154 @@ def get_user_learning_statistics(user_id: int) -> Dict[str, Any]:
     weak_words_list.sort(key=lambda x: (x["accuracy"], -x["times_tested"]))
 
     # =========================================================================
-    # 2. Smart Study (SRS) Historical Reviews Analytics
+    # 2. Smart Study (SRS) Historical Reviews Analytics (Optimized SQL)
     # =========================================================================
-    study_reviews = SmartStudyReview.query.filter_by(user_id=user_id).order_by(SmartStudyReview.timestamp.asc()).all()
-    total_study_reviews = len(study_reviews)
-    easy_count = sum(1 for r in study_reviews if r.rating == 'easy')
-    medium_count = sum(1 for r in study_reviews if r.rating == 'medium')
-    hard_count = sum(1 for r in study_reviews if r.rating == 'hard')
+    # Aggregated rating counts via SQL GROUP BY
+    rating_counts = db.session.query(
+        SmartStudyReview.rating,
+        func.count(SmartStudyReview.id)
+    ).filter(
+        SmartStudyReview.user_id == user_id
+    ).group_by(SmartStudyReview.rating).all()
 
-    # Word rating distribution in Smart Study
-    word_study_counts = defaultdict(lambda: {"easy": 0, "medium": 0, "hard": 0, "term": "", "topic": "", "history": []})
-    topic_study_hard_counts = defaultdict(int)
+    rating_dict = {r: count for r, count in rating_counts}
+    easy_count = rating_dict.get('easy', 0)
+    medium_count = rating_dict.get('medium', 0)
+    hard_count = rating_dict.get('hard', 0)
+    total_study_reviews = easy_count + medium_count + hard_count
 
-    for r in study_reviews:
-        w_term = r.word.term if r.word else f"Word#{r.word_id}"
-        t_name = r.topic.name if r.topic else (r.word.topic_category.name if r.word and r.word.topic_category else "Chung")
-        word_study_counts[r.word_id]["term"] = w_term
-        word_study_counts[r.word_id]["topic"] = t_name
-        word_study_counts[r.word_id][r.rating] += 1
-        word_study_counts[r.word_id]["history"].append(r.rating)
-        if r.rating == 'hard':
-            topic_study_hard_counts[t_name] += 1
+    # Hard words in Smart Study (Grouped by word, limit top 5)
+    hard_words_study_rows = db.session.query(
+        Word.term,
+        Topic.name,
+        func.count(SmartStudyReview.id).label('hard_count')
+    ).join(Word, SmartStudyReview.word_id == Word.id
+    ).outerjoin(Topic, SmartStudyReview.topic_id == Topic.id
+    ).filter(
+        SmartStudyReview.user_id == user_id,
+        SmartStudyReview.rating == 'hard'
+    ).group_by(Word.term, Topic.name
+    ).order_by(func.count(SmartStudyReview.id).desc()
+    ).limit(5).all()
 
-    # Frequently marked hard and easy words
     hard_words_study = [
-        {"word": v["term"], "topic": v["topic"], "hard_count": v["hard"], "total": sum([v["easy"], v["medium"], v["hard"]])}
-        for v in word_study_counts.values() if v["hard"] > 0
+        {"word": term, "topic": topic_name or "Chung", "hard_count": count, "total": count}
+        for term, topic_name, count in hard_words_study_rows
     ]
-    hard_words_study.sort(key=lambda x: (-x["hard_count"], -x["total"]))
+
+    # Easy words in Smart Study (Grouped by word, limit top 5)
+    easy_words_study_rows = db.session.query(
+        Word.term,
+        Topic.name,
+        func.count(SmartStudyReview.id).label('easy_count')
+    ).join(Word, SmartStudyReview.word_id == Word.id
+    ).outerjoin(Topic, SmartStudyReview.topic_id == Topic.id
+    ).filter(
+        SmartStudyReview.user_id == user_id,
+        SmartStudyReview.rating == 'easy'
+    ).group_by(Word.term, Topic.name
+    ).order_by(func.count(SmartStudyReview.id).desc()
+    ).limit(5).all()
 
     easy_words_study = [
-        {"word": v["term"], "topic": v["topic"], "easy_count": v["easy"]}
-        for v in word_study_counts.values() if v["easy"] > 0
+        {"word": term, "topic": topic_name or "Chung", "easy_count": count}
+        for term, topic_name, count in easy_words_study_rows
     ]
-    easy_words_study.sort(key=lambda x: -x["easy_count"])
 
-    # Difficulty transitions (e.g. hard -> medium or medium -> easy)
+    # Hard topics in Smart Study (Grouped by topic)
+    hard_topics_rows = db.session.query(
+        Topic.name,
+        func.count(SmartStudyReview.id).label('hard_count')
+    ).join(Topic, SmartStudyReview.topic_id == Topic.id
+    ).filter(
+        SmartStudyReview.user_id == user_id,
+        SmartStudyReview.rating == 'hard'
+    ).group_by(Topic.name
+    ).order_by(func.count(SmartStudyReview.id).desc()
+    ).limit(3).all()
+
+    hard_topics_study = [tname for tname, _ in hard_topics_rows if tname]
+
+    # Difficulty transitions (Recent word review history transitions)
     difficulty_transitions = []
-    for wid, v in word_study_counts.items():
-        hist = v["history"]
-        if len(hist) >= 2:
-            first_r, last_r = hist[0], hist[-1]
-            if first_r != last_r:
-                difficulty_transitions.append({
-                    "word": v["term"],
-                    "from_rating": first_r,
-                    "to_rating": last_r,
-                    "steps": len(hist)
-                })
 
-    # Hard topics in Smart Study
-    hard_topics_study = sorted(topic_study_hard_counts.keys(), key=lambda t: -topic_study_hard_counts[t])
+    # Recent 5 study reviews (Indexed SQL LIMIT 5)
+    recent_study_rows = db.session.query(
+        Word.term,
+        SmartStudyReview.rating,
+        SmartStudyReview.timestamp
+    ).join(Word, SmartStudyReview.word_id == Word.id
+    ).filter(
+        SmartStudyReview.user_id == user_id
+    ).order_by(SmartStudyReview.timestamp.desc()
+    ).limit(5).all()
 
-    # Recent 5 study reviews
     recent_study_reviews = [
         {
-            "word": r.word.term if r.word else f"Word#{r.word_id}",
-            "rating": r.rating,
-            "timestamp": r.timestamp.strftime("%Y-%m-%d %H:%M") if r.timestamp else ""
+            "word": term,
+            "rating": rating,
+            "timestamp": ts.strftime("%Y-%m-%d %H:%M") if ts else ""
         }
-        for r in study_reviews[-5:]
+        for term, rating, ts in reversed(recent_study_rows)
     ]
 
     # =========================================================================
-    # 3. Normal Quiz History Analytics
+    # 3. Normal Quiz History Analytics (Optimized SQL)
     # =========================================================================
-    quiz_attempts = QuizAttempt.query.filter_by(user_id=user_id).order_by(QuizAttempt.timestamp.asc()).all()
-    total_quiz_attempts = len(quiz_attempts)
-    total_quiz_correct = sum(1 for a in quiz_attempts if a.is_correct)
+    quiz_totals = db.session.query(
+        func.count(QuizAttempt.id).label('total'),
+        func.coalesce(func.sum(case((QuizAttempt.is_correct == True, 1), else_=0)), 0).label('correct')
+    ).filter(
+        QuizAttempt.user_id == user_id
+    ).first()
+
+    total_quiz_attempts = quiz_totals.total if quiz_totals else 0
+    total_quiz_correct = int(quiz_totals.correct) if quiz_totals else 0
     total_quiz_incorrect = total_quiz_attempts - total_quiz_correct
     overall_quiz_accuracy = round((total_quiz_correct / total_quiz_attempts * 100), 1) if total_quiz_attempts > 0 else 0.0
 
-    word_quiz_stats = defaultdict(lambda: {"attempts": 0, "correct": 0, "term": "", "topic": ""})
-    topic_quiz_stats = defaultdict(lambda: {"attempts": 0, "correct": 0})
+    # Word-level quiz statistics grouped by word
+    word_quiz_rows = db.session.query(
+        Word.term,
+        Topic.name,
+        func.count(QuizAttempt.id).label('attempts'),
+        func.coalesce(func.sum(case((QuizAttempt.is_correct == True, 1), else_=0)), 0).label('correct')
+    ).join(Word, QuizAttempt.word_id == Word.id
+    ).outerjoin(Topic, QuizAttempt.topic_id == Topic.id
+    ).filter(
+        QuizAttempt.user_id == user_id
+    ).group_by(Word.term, Topic.name
+    ).all()
 
-    for a in quiz_attempts:
-        w_term = a.word.term if a.word else f"Word#{a.word_id}"
-        t_name = a.topic.name if a.topic else (a.word.topic_category.name if a.word and a.word.topic_category else "Chung")
-        word_quiz_stats[a.word_id]["term"] = w_term
-        word_quiz_stats[a.word_id]["topic"] = t_name
-        word_quiz_stats[a.word_id]["attempts"] += 1
-        if a.is_correct:
-            word_quiz_stats[a.word_id]["correct"] += 1
-
-        topic_quiz_stats[t_name]["attempts"] += 1
-        if a.is_correct:
-            topic_quiz_stats[t_name]["correct"] += 1
-
-    # Categorize Quiz weak words (< 60% accuracy) and strong words (>= 80% accuracy)
     quiz_weak_words = []
     quiz_strong_words = []
-    for wid, s in word_quiz_stats.items():
-        acc = round(s["correct"] / s["attempts"] * 100, 1)
-        entry = {"word": s["term"], "topic": s["topic"], "attempts": s["attempts"], "correct": s["correct"], "accuracy": acc}
-        if acc < 60.0 or s["correct"] == 0:
+    for term, topic_name, attempts, correct in word_quiz_rows:
+        acc = round(int(correct) / attempts * 100, 1) if attempts > 0 else 0.0
+        entry = {"word": term, "topic": topic_name or "Chung", "attempts": attempts, "correct": int(correct), "accuracy": acc}
+        if acc < 60.0 or correct == 0:
             quiz_weak_words.append(entry)
-        elif acc >= 80.0 and s["attempts"] >= 2:
+        elif acc >= 80.0 and attempts >= 2:
             quiz_strong_words.append(entry)
 
     quiz_weak_words.sort(key=lambda x: (x["accuracy"], -x["attempts"]))
     quiz_strong_words.sort(key=lambda x: (-x["accuracy"], -x["attempts"]))
 
-    # Categorize Quiz weak and strong topics
+    # Topic-level quiz statistics grouped by topic
+    topic_quiz_rows = db.session.query(
+        Topic.name,
+        func.count(QuizAttempt.id).label('attempts'),
+        func.coalesce(func.sum(case((QuizAttempt.is_correct == True, 1), else_=0)), 0).label('correct')
+    ).join(Topic, QuizAttempt.topic_id == Topic.id
+    ).filter(
+        QuizAttempt.user_id == user_id
+    ).group_by(Topic.name
+    ).all()
+
     quiz_weak_topics = []
     quiz_strong_topics = []
-    for tname, s in topic_quiz_stats.items():
-        acc = round(s["correct"] / s["attempts"] * 100, 1)
-        entry = {"topic": tname, "attempts": s["attempts"], "correct": s["correct"], "accuracy": acc}
+    for topic_name, attempts, correct in topic_quiz_rows:
+        acc = round(int(correct) / attempts * 100, 1) if attempts > 0 else 0.0
+        entry = {"topic": topic_name or "Chung", "attempts": attempts, "correct": int(correct), "accuracy": acc}
         if acc < 60.0:
             quiz_weak_topics.append(entry)
         elif acc >= 75.0:
@@ -235,14 +277,27 @@ def get_user_learning_statistics(user_id: int) -> Dict[str, Any]:
     quiz_weak_topics.sort(key=lambda x: x["accuracy"])
     quiz_strong_topics.sort(key=lambda x: -x["accuracy"])
 
+    # Recent 5 mistakes (SQL limit 5)
+    recent_mistakes_rows = db.session.query(
+        Word.term,
+        Topic.name,
+        QuizAttempt.timestamp
+    ).join(Word, QuizAttempt.word_id == Word.id
+    ).outerjoin(Topic, QuizAttempt.topic_id == Topic.id
+    ).filter(
+        QuizAttempt.user_id == user_id,
+        QuizAttempt.is_correct == False
+    ).order_by(QuizAttempt.timestamp.desc()
+    ).limit(5).all()
+
     recent_mistakes = [
         {
-            "word": a.word.term if a.word else f"Word#{a.word_id}",
-            "topic": a.topic.name if a.topic else "Chung",
-            "timestamp": a.timestamp.strftime("%Y-%m-%d %H:%M") if a.timestamp else ""
+            "word": term,
+            "topic": topic_name or "Chung",
+            "timestamp": ts.strftime("%Y-%m-%d %H:%M") if ts else ""
         }
-        for a in quiz_attempts if not a.is_correct
-    ][-5:]
+        for term, topic_name, ts in reversed(recent_mistakes_rows)
+    ]
 
     # =========================================================================
     # 4. Synthesize Unified Statistics & Metrics

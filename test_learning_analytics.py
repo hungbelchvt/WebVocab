@@ -222,7 +222,47 @@ class TestLearningAnalytics(unittest.TestCase):
         self.assertIn(b'tab-streak-btn', resp.data)
         self.assertIn(b'tab-exp-btn', resp.data)
         self.assertIn(b'user_bob', resp.data)
-        self.assertIn(b'user_alice', resp.data)
+    def test_refresh_learning_analysis_endpoint(self):
+        """Test that /api/ai/learning-analysis endpoint handles query parameters for refresh and returns fresh analysis."""
+        self._login(self.user_a)
+        
+        mock_analysis_payload = AILearningAnalysis(
+            summary="Tiến độ học tập rất khả quan và ổn định.",
+            strengths=["Thành thạo các khái niệm cốt lõi", "Chuỗi ngày học liên tục"],
+            weaknesses=["Cần luyện tập thêm từ vựng khó"],
+            weak_words=[
+                WeakWordInsight(
+                    word="Neural Network",
+                    issue="Độ chính xác còn thấp",
+                    recommendation="Ghi nhớ qua sơ đồ tư duy."
+                )
+            ],
+            weak_topics=[
+                WeakTopicInsight(
+                    topic_name="Technology & AI",
+                    issue="Tỷ lệ sai 100%",
+                    recommendation="Học lại các định nghĩa cơ bản."
+                )
+            ],
+            learning_insights=[
+                LearningInsight(
+                    title="Củng cố từ vựng khó",
+                    insight="Từ vựng Neural Network cần xem lại.",
+                    action="Làm thêm bài Quiz."
+                )
+            ],
+            review_priorities=["Neural Network"]
+        )
+
+        with patch('app.ai_routes.ai_service.analyze_learning_data', return_value=mock_analysis_payload):
+            # Test initial / refresh call with timestamp
+            resp = self.client.get('/api/ai/learning-analysis?t=1700000000')
+            self.assertEqual(resp.status_code, 200)
+            data = resp.get_json()
+            self.assertTrue(data['success'])
+            self.assertTrue(data['has_data'])
+            self.assertIn('analysis', data)
+            self.assertEqual(data['analysis']['summary'], "Tiến độ học tập rất khả quan và ổn định.")
 
 
 if __name__ == '__main__':

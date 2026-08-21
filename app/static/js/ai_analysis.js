@@ -67,14 +67,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch & Load Analysis
     // =================================================================
     async function loadAnalysis() {
+        if (refreshBtn && refreshBtn.disabled) {
+            return; // Prevent duplicate concurrent requests
+        }
+
+        // Set button loading state
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang phân tích...';
+        }
+        if (retryBtn) {
+            retryBtn.disabled = true;
+        }
+
         showState('loading');
 
         try {
-            const response = await fetch('/api/ai/learning-analysis');
+            const timestamp = Date.now();
+            const response = await fetch(`/api/ai/learning-analysis?t=${timestamp}`, {
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
             const data = await response.json();
 
             if (!response.ok || !data.success) {
-                const message = (data.error && data.error.message) || data.message || 'Không thể tải phân tích học tập.';
+                const message = (data.error && data.error.message) || data.message || 'AI đang bận. Vui lòng thử lại sau ít phút.';
                 errorMsg.textContent = message;
                 showState('error');
                 return;
@@ -92,6 +111,14 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('AI Analysis Error:', err);
             errorMsg.textContent = 'Lỗi kết nối khi tải phân tích học tập. Vui lòng thử lại.';
             showState('error');
+        } finally {
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="fa-solid fa-rotate"></i> Phân tích lại';
+            }
+            if (retryBtn) {
+                retryBtn.disabled = false;
+            }
         }
     }
 

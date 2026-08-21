@@ -116,7 +116,8 @@ class AIService:
 
     def _get_client(self):
         """
-        Lazy-initialize and return the Google GenAI client.
+        Lazy-initialize and cache the Google GenAI client per worker process.
+        Reuses the initialized client instance to prevent memory leaks and TLS session churn.
         Raises AIConfigurationError if API key is missing.
         """
         api_key = self.get_api_key()
@@ -125,9 +126,14 @@ class AIService:
                 "Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file."
             )
 
+        if self._client is not None and getattr(self, '_cached_api_key', None) == api_key:
+            return self._client
+
         try:
             from google import genai
-            return genai.Client(api_key=api_key)
+            self._client = genai.Client(api_key=api_key)
+            self._cached_api_key = api_key
+            return self._client
         except Exception as e:
             logger.error(f"Failed to initialize Gemini client: {str(e)}")
             raise AIConfigurationError(f"Could not initialize Gemini client: {str(e)}")
@@ -245,12 +251,14 @@ class AIService:
             err_str = str(e)
             logger.error(f"Gemini API request failed: {err_str}", exc_info=True)
             if "timeout" in err_str.lower() or "deadline" in err_str.lower():
-                raise AITimeoutError()
+                raise AITimeoutError("Yêu cầu AI bị quá thời gian xử lý. Vui lòng thử lại sau ít phút.")
+            if "503" in err_str or "unavailable" in err_str.lower() or "overloaded" in err_str.lower():
+                raise AIResponseError("AI đang bận do lượng truy cập cao. Vui lòng thử lại sau ít phút.", status_code=503)
             if "429" in err_str or "quota" in err_str.lower() or "resource_exhausted" in err_str.lower():
-                raise AIResponseError("AI service quota or rate limit exceeded. Please try again shortly.", status_code=429)
+                raise AIResponseError("Hệ thống AI đang tiếp nhận nhiều yêu cầu. Vui lòng thử lại sau ít phút.", status_code=429)
             if "401" in err_str or "403" in err_str or "api_key" in err_str.lower():
-                raise AIConfigurationError("Invalid Gemini API key or unauthorized access.")
-            raise AIResponseError(f"AI generation failed: {err_str}")
+                raise AIConfigurationError("Cấu hình dịch vụ AI chưa hợp lệ.")
+            raise AIResponseError("AI đang bận. Vui lòng thử lại sau ít phút.")
 
     def generate_text(
         self,
@@ -474,7 +482,7 @@ class AIService:
             "success": False,
             "error": {
                 "type": "InternalServerError",
-                "message": "An unexpected error occurred while processing the AI request.",
+                "message": "AI đang bận. Vui lòng thử lại sau ít phút.",
                 "status_code": 500
             }
         }
