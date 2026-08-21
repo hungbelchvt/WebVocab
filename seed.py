@@ -597,6 +597,7 @@ def ensure_schema_compatibility(app=None):
     Idempotent and safe to run on every startup.
     """
     if app is None:
+        from app import create_app
         app = create_app()
 
     with app.app_context():
@@ -606,25 +607,31 @@ def ensure_schema_compatibility(app=None):
         if dialect_name in ('postgresql', 'postgres'):
             logger.info("[DB] Checking PostgreSQL schema compatibility...")
             with engine.connect() as conn:
-                inspector = inspect(engine)
-                table_names = inspector.get_table_names()
+                try:
+                    inspector = inspect(conn)
+                    table_names = inspector.get_table_names()
 
-                if 'topic' in table_names:
-                    conn.execute(text("ALTER TABLE topic ALTER COLUMN user_id DROP NOT NULL;"))
-                    logger.info("[DB] Ensured 'topic.user_id' allows NULL.")
+                    if 'topic' in table_names:
+                        conn.execute(text("ALTER TABLE topic ALTER COLUMN user_id DROP NOT NULL;"))
+                        logger.info("[DB] Ensured 'topic.user_id' allows NULL.")
 
-                if 'word' in table_names:
-                    conn.execute(text("ALTER TABLE word ALTER COLUMN user_id DROP NOT NULL;"))
-                    logger.info("[DB] Ensured 'word.user_id' allows NULL.")
+                    if 'word' in table_names:
+                        conn.execute(text("ALTER TABLE word ALTER COLUMN user_id DROP NOT NULL;"))
+                        logger.info("[DB] Ensured 'word.user_id' allows NULL.")
 
-                if 'user' in table_names:
-                    columns = [col['name'] for col in inspector.get_columns('user')]
-                    if 'longest_streak' not in columns:
-                        conn.execute(text('ALTER TABLE "user" ADD COLUMN longest_streak INTEGER DEFAULT 0;'))
-                        conn.execute(text('UPDATE "user" SET longest_streak = COALESCE(current_streak, 0) WHERE longest_streak IS NULL OR longest_streak = 0;'))
-                        logger.info("[DB] Added 'longest_streak' column to 'user' table.")
+                    if 'user' in table_names:
+                        columns = [col['name'] for col in inspector.get_columns('user')]
+                        if 'longest_streak' not in columns:
+                            conn.execute(text('ALTER TABLE "user" ADD COLUMN longest_streak INTEGER DEFAULT 0;'))
+                            conn.execute(text('UPDATE "user" SET longest_streak = COALESCE(current_streak, 0) WHERE longest_streak IS NULL OR longest_streak = 0;'))
+                            logger.info("[DB] Added 'longest_streak' column to 'user' table.")
 
-                conn.commit()
+                    conn.commit()
+                except Exception as exc:
+                    conn.rollback()
+                    logger.warning(f"[DB] Schema compatibility error (transaction rolled back): {exc}")
+                    raise
+
 
 
 
@@ -749,14 +756,28 @@ def auto_init_and_seed(app, max_retries=3, retry_delay=2):
                 logger.info("[SEED] Checking system vocabulary...")
                 seed_database(app=app, verbose=False)
                 logger.info("[APP] WebVocab startup auto-seed complete.")
+
+                # Explicitly close any session and release all connections in the pool for PostgreSQL
+                db.session.remove()
+                if db.engine.dialect.name in ('postgresql', 'postgres'):
+                    db.engine.dispose()
                 return True
         except Exception as exc:
             logger.warning(f"[DB] Initialization attempt {attempt} failed: {exc}")
+            try:
+                db.session.rollback()
+                db.session.remove()
+                if db.engine.dialect.name in ('postgresql', 'postgres'):
+                    db.engine.dispose()
+            except Exception:
+                pass
+
             if attempt < max_retries:
                 time.sleep(retry_delay)
             else:
                 logger.error("[DB] Database initialization failed after all retries.", exc_info=True)
                 raise
+
 
 
 if __name__ == '__main__':

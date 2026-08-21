@@ -21,10 +21,43 @@ class Config:
     if database_url and database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
 
+    is_postgres = bool(database_url and (
+        database_url.startswith("postgresql://") or
+        database_url.startswith("postgres://") or
+        database_url.startswith("postgresql+psycopg2://")
+    ))
+
+    if is_postgres:
+        # Ensure sslmode=require is set in URL if not explicitly specified
+        if "sslmode=" not in database_url:
+            separator = "&" if "?" in database_url else "?"
+            database_url = f"{database_url}{separator}sslmode=require"
+
+        # Production-grade PostgreSQL connection pooling for Render Free:
+        # - pool_pre_ping: Discards dead/dropped connections before query execution
+        # - pool_recycle: Recycles connections every 300s (5m) to avoid idle timeouts
+        # - pool_size & max_overflow: Conservative limits appropriate for Render Free limits
+        # - connect_args: Enforces SSL requirement on psycopg2 level
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "pool_size": 5,
+            "max_overflow": 10,
+            "connect_args": {
+                "sslmode": "require"
+            }
+        }
+    else:
+        # SQLite local development / test configuration
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_pre_ping": True
+        }
+
     SQLALCHEMY_DATABASE_URI = database_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Gemini AI Configuration
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '').strip()
     GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3.6-flash').strip()
-    AI_REQUEST_TIMEOUT = int(os.environ.get('AI_REQUEST_TIMEOUT', '30'))
+    AI_REQUEST_TIMEOUT = int(os.environ.get('AI_REQUEST_TIMEOUT', '30'))
+

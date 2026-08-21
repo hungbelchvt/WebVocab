@@ -38,4 +38,13 @@ def create_app(config_class=Config):
             from seed import auto_init_and_seed
             auto_init_and_seed(app)
 
+        # Clean up session and dispose engine connections from startup so that
+        # Gunicorn worker forks do not inherit pre-existing open TCP/SSL sockets (PostgreSQL)
+        try:
+            db.session.remove()
+            if db.engine.dialect.name in ('postgresql', 'postgres'):
+                db.engine.dispose()
+        except Exception:
+            pass
+
     return app

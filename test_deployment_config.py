@@ -2,11 +2,11 @@
 Deployment & Configuration Verification Tests for WebVocab.
 Validates:
 1. /health endpoint behavior and security.
-2. Config database_url normalization ('postgres://' -> 'postgresql://').
-3. SECRET_KEY production enforcement.
-4. Gemini environment variables loading.
-5. PostgreSQL schema and DDL compatibility across all models (User, Topic, Word, WordProgress).
-6. Application factory instantiation with create_app().
+2. Config database_url normalization ('postgres://' -> 'postgresql://' with sslmode=require).
+3. PostgreSQL connection pooling options (pool_pre_ping=True, pool_recycle=300, connect_args sslmode=require).
+4. SQLite connection options compatibility (pool_pre_ping=True without PostgreSQL connect_args).
+5. SECRET_KEY production enforcement.
+6. PostgreSQL schema and DDL compatibility across all models.
 """
 
 import os
@@ -44,26 +44,39 @@ class TestDeploymentConfiguration(unittest.TestCase):
         self.assertNotIn('GEMINI_API_KEY', str(json_data))
 
     def test_database_url_normalization_postgres_prefix(self):
-        """Verify that Render postgres:// URLs are converted to postgresql://."""
+        """Verify that Render postgres:// URLs are converted to postgresql:// with sslmode=require."""
         with patch.dict(os.environ, {'DATABASE_URL': 'postgres://user:pass@host:5432/dbname'}, clear=False):
             import importlib
             import config
             importlib.reload(config)
             self.assertEqual(
                 config.Config.SQLALCHEMY_DATABASE_URI,
-                'postgresql://user:pass@host:5432/dbname'
+                'postgresql://user:pass@host:5432/dbname?sslmode=require'
             )
 
     def test_database_url_postgresql_preserved(self):
-        """Verify postgresql:// URLs remain intact."""
+        """Verify postgresql:// URLs remain intact and include sslmode=require."""
         with patch.dict(os.environ, {'DATABASE_URL': 'postgresql://user:pass@host:5432/dbname'}, clear=False):
             import importlib
             import config
             importlib.reload(config)
             self.assertEqual(
                 config.Config.SQLALCHEMY_DATABASE_URI,
-                'postgresql://user:pass@host:5432/dbname'
+                'postgresql://user:pass@host:5432/dbname?sslmode=require'
             )
+
+    def test_postgresql_connection_pool_options(self):
+        """Verify pool_pre_ping, pool_recycle, and SSL connect_args are configured for PostgreSQL."""
+        with patch.dict(os.environ, {'DATABASE_URL': 'postgresql://user:pass@host:5432/dbname'}, clear=False):
+            import importlib
+            import config
+            importlib.reload(config)
+            engine_opts = config.Config.SQLALCHEMY_ENGINE_OPTIONS
+            self.assertTrue(engine_opts.get("pool_pre_ping"))
+            self.assertEqual(engine_opts.get("pool_recycle"), 300)
+            self.assertEqual(engine_opts.get("pool_size"), 5)
+            self.assertEqual(engine_opts.get("max_overflow"), 10)
+            self.assertEqual(engine_opts.get("connect_args", {}).get("sslmode"), "require")
 
     def test_database_url_sqlite_fallback(self):
         """Verify SQLite is used as local development fallback when DATABASE_URL is not set."""
@@ -76,6 +89,10 @@ class TestDeploymentConfiguration(unittest.TestCase):
                 config.Config.SQLALCHEMY_DATABASE_URI,
                 'sqlite:///vocab.db'
             )
+            # Ensure SQLite engine options do not pass postgresql connect_args
+            engine_opts = config.Config.SQLALCHEMY_ENGINE_OPTIONS
+            self.assertTrue(engine_opts.get("pool_pre_ping"))
+            self.assertNotIn("connect_args", engine_opts)
 
     def test_secret_key_required_in_production(self):
         """Verify SECRET_KEY is strictly required when RENDER or FLASK_ENV=production is set."""
@@ -108,3 +125,4 @@ class TestDeploymentConfiguration(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
