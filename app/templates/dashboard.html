@@ -59,6 +59,15 @@
                 <a href="{{ url_for('quiz_setup') }}" class="btn btn-continue" style="background: #ff9800; margin-left: auto;">Setup Quiz</a>
             {% endif %}
         </div>
+
+        <div class="w3-card primary-learning-card" style="border-top: 4px solid #2196f3; margin-bottom: 0;">
+            <div class="card-icon"><i class="fa-solid fa-chart-pie" style="color: #2196f3;"></i></div>
+            <div class="card-details">
+                <h3>AI Learning Analysis</h3>
+                <p>Personalized AI diagnostics, weak word insights & recommendations</p>
+            </div>
+            <a href="{{ url_for('ai_ui.learning_analysis_page') }}" class="btn btn-continue" style="background: #2196f3; margin-left: auto;">View Analysis</a>
+        </div>
     </div>
 
     <div class="secondary-stats-grid" style="display: flex; flex-direction: column; gap: 20px;">

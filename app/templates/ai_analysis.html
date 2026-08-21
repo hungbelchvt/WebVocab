@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}AI Learning Analysis - Vocab App{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai_styles.css') }}">
+
+<div class="ai-header">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <h1>
+                <i class="fa-solid fa-chart-pie" style="color: #2196f3;"></i> AI Learning Analysis
+                <span class="ai-badge" style="color: #2196f3; border-color: rgba(33, 150, 243, 0.3); background: #e3f2fd;">Gemini 3.6 Flash</span>
+            </h1>
+            <p class="ai-subtitle">Phân tích toàn diện dữ liệu học tập thực tế, phát hiện từ vựng yếu, chủ đề cần cải thiện và gợi ý chiến lược học tối ưu.</p>
+        </div>
+
+        <div>
+            <a href="{{ url_for('ai_ui.quiz_page') }}" class="btn" style="background: #ff9800; color: white; border-radius: 8px; font-weight: bold; padding: 10px 20px; display: inline-flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-graduation-cap"></i> Làm Quiz AI
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Loading State -->
+<div id="ai-analysis-loading" class="ai-loading-card" style="display: block; max-width: 800px; margin: 40px auto;">
+    <div class="ai-spinner" style="border-top-color: #2196f3;"></div>
+    <p class="ai-loading-text">AI đang phân tích tiến độ học tập của bạn...</p>
+    <p class="ai-loading-subtext">Đang tổng hợp tỷ lệ đúng, phát hiện từ vựng yếu và trích xuất chiến lược từ Gemini 3.6 Flash</p>
+</div>
+
+<!-- Error State -->
+<div id="ai-analysis-error" class="ai-error-card" style="max-width: 800px; margin: 20px auto; display: none;">
+    <div class="ai-error-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+    <h3 class="ai-error-title">Không thể tải phân tích</h3>
+    <p id="ai-analysis-error-msg" class="ai-error-msg">Đã xảy ra lỗi khi tải dữ liệu phân tích từ máy chủ.</p>
+    <button type="button" id="ai-analysis-retry-btn" class="ai-btn-retry"><i class="fa-solid fa-rotate-right"></i> Thử lại</button>
+</div>
+
+<!-- Empty State (Insufficient Data) -->
+<div id="ai-analysis-empty" class="ai-empty-card" style="max-width: 800px; margin: 40px auto; display: none;">
+    <div class="ai-empty-icon"><i class="fa-solid fa-chart-line" style="color: #90caf9;"></i></div>
+    <h3 style="margin: 0 0 10px 0; color: #333;">Chưa có đủ dữ liệu học tập để phân tích AI</h3>
+    <p style="margin: 0 0 20px 0; font-size: 0.95rem; color: #666; max-width: 500px; margin-left: auto; margin-right: auto;">
+        Hãy hoàn thành ít nhất một bài kiểm tra hoặc học thêm các từ vựng mới để AI có thể đánh giá và phát hiện điểm mạnh/yếu của bạn.
+    </p>
+    <div style="display: flex; justify-content: center; gap: 12px;">
+        <a href="{{ url_for('ai_ui.vocabulary_page') }}" class="btn" style="background: #04AA6D; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold;">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Học từ mới cùng AI
+        </a>
+        <a href="{{ url_for('quiz_setup') }}" class="btn" style="background: #ff9800; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold;">
+            <i class="fa-solid fa-gamepad"></i> Làm bài Quiz
+        </a>
+    </div>
+</div>
+
+<!-- Results Container -->
+<div id="ai-analysis-results" style="display: none;">
+    
+    <!-- Real Database Metric Cards -->
+    <div class="ai-stat-grid">
+        <div class="ai-stat-card">
+            <div class="ai-stat-icon words"><i class="fa-solid fa-book-open"></i></div>
+            <div class="ai-stat-info">
+                <h3 id="stat-enrolled">0</h3>
+                <p>Từ vựng đã ghi danh</p>
+            </div>
+        </div>
+
+        <div class="ai-stat-card">
+            <div class="ai-stat-icon accuracy"><i class="fa-solid fa-bullseye"></i></div>
+            <div class="ai-stat-info">
+                <h3 id="stat-accuracy">0%</h3>
+                <p>Độ chính xác tổng quan</p>
+            </div>
+        </div>
+
+        <div class="ai-stat-card">
+            <div class="ai-stat-icon mastery"><i class="fa-solid fa-trophy"></i></div>
+            <div class="ai-stat-info">
+                <h3 id="stat-mastery">0 (0%)</h3>
+                <p>Từ đã thành thạo</p>
+            </div>
+        </div>
+
+        <div class="ai-stat-card">
+            <div class="ai-stat-icon due"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            <div class="ai-stat-info">
+                <h3 id="stat-due">0</h3>
+                <p>Từ đến hạn ôn tập</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Overview Hero Banner -->
+    <div class="ai-analysis-hero">
+        <div class="ai-analysis-hero-icon"><i class="fa-solid fa-robot"></i></div>
+        <div class="ai-analysis-hero-content">
+            <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Đánh giá tổng quan từ AI Coach</h3>
+            <p id="ai-summary-text">Đang tổng hợp phân tích...</p>
+        </div>
+    </div>
+
+    <!-- Strengths & Weaknesses 2-Column Grid -->
+    <div class="ai-sw-grid">
+        <div class="ai-sw-card strength">
+            <h3 class="ai-sw-title" style="color: #1b5e20;">
+                <i class="fa-solid fa-circle-check" style="color: #04AA6D;"></i> Điểm mạnh & Thế mạnh nổi bật
+            </h3>
+            <ul id="ai-strengths-list" class="ai-sw-list">
+                <!-- Injected via JS -->
+            </ul>
+        </div>
+
+        <div class="ai-sw-card weakness">
+            <h3 class="ai-sw-title" style="color: #b71c1c;">
+                <i class="fa-solid fa-triangle-exclamation" style="color: #f44336;"></i> Điểm yếu & Lỗ hổng cần chú ý
+            </h3>
+            <ul id="ai-weaknesses-list" class="ai-sw-list">
+                <!-- Injected via JS -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- Review Priorities Box -->
+    <div class="w3-card" style="padding: 22px; margin-bottom: 25px; border-radius: 10px;">
+        <h3 style="margin: 0 0 12px 0; font-size: 1.15rem; color: #222; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-fire" style="color: #ff9800;"></i> Từ vựng ưu tiên ôn tập ngay hôm nay
+        </h3>
+        <div id="ai-review-priorities-wrap" class="ai-tags-wrap">
+            <!-- Injected via JS -->
+        </div>
+    </div>
+
+    <!-- Weak Words Diagnosis List -->
+    <div class="w3-card" style="padding: 24px; margin-bottom: 25px; border-radius: 10px;">
+        <h3 style="margin: 0 0 16px 0; font-size: 1.2rem; color: #222; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-triangle-exclamation" style="color: #f44336;"></i> Chi tiết chẩn đoán từ vựng yếu & Lời khuyên
+        </h3>
+        <div id="ai-weak-words-list" class="ai-weak-words-container">
+            <!-- Injected via JS -->
+        </div>
+    </div>
+
+    <!-- Topic Breakdown Section -->
+    <div id="ai-topic-section" style="margin-bottom: 25px;">
+        <h3 style="margin: 0 0 16px 0; font-size: 1.2rem; color: #222; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-layer-group" style="color: #04AA6D;"></i> Đánh giá theo từng Danh mục (Topic)
+        </h3>
+        <div id="ai-weak-topics-list">
+            <!-- Injected via JS -->
+        </div>
+    </div>
+
+    <!-- Actionable Learning Insights -->
+    <div class="w3-card" style="padding: 24px; margin-bottom: 25px; border-radius: 10px;">
+        <h3 style="margin: 0 0 16px 0; font-size: 1.2rem; color: #222; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-lightbulb" style="color: #ff9800;"></i> Lời khuyên sư phạm & Hành động đề xuất
+        </h3>
+        <div id="ai-insights-list">
+            <!-- Injected via JS -->
+        </div>
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/ai_analysis.js') }}"></script>
+{% endblock %}

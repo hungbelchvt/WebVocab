@@ -21,7 +21,10 @@
                 <li><a href="{{ url_for('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
                 <li><a href="{{ url_for('study') }}"><i class="fa-solid fa-brain"></i> Smart Study</a></li>
                 <li><a href="{{ url_for('quiz_setup') }}"><i class="fa-solid fa-gamepad"></i> Quizzes</a></li>
+                <li><a href="{{ url_for('ai_ui.quiz_page') }}"><i class="fa-solid fa-graduation-cap" style="color: #ff9800;"></i> AI Quiz</a></li>
                 <li><a href="{{ url_for('progress') }}"><i class="fa-solid fa-chart-line"></i> My Progress</a></li>
+                <li><a href="{{ url_for('ai_ui.vocabulary_page') }}"><i class="fa-solid fa-wand-magic-sparkles" style="color: #04AA6D;"></i> AI Vocabulary</a></li>
+                <li><a href="{{ url_for('ai_ui.learning_analysis_page') }}"><i class="fa-solid fa-chart-pie" style="color: #2196f3;"></i> AI Analysis</a></li>
             {% endif %}
             {% if current_user.is_admin %}
                 <li>

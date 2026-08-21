@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}AI Vocabulary Assistant - Vocab App{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai_styles.css') }}">
+
+<div class="ai-header">
+    <h1>
+        <i class="fa-solid fa-wand-magic-sparkles" style="color: #04AA6D;"></i> AI Vocabulary Assistant
+        <span class="ai-badge">Gemini 3.6 Flash</span>
+    </h1>
+    <p class="ai-subtitle">Nhập bất kỳ từ vựng tiếng Anh nào để AI giải thích nghĩa, phát âm IPA, ví dụ thực tế, từ đồng nghĩa và mẹo ghi nhớ.</p>
+</div>
+
+<!-- Search Input Card -->
+<div class="ai-search-card">
+    <form id="ai-vocab-form" class="ai-search-form" autocomplete="off">
+        <div class="ai-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input 
+                type="text" 
+                id="ai-word-input" 
+                class="ai-input" 
+                placeholder="Nhập từ vựng tiếng Anh (ví dụ: abandon, resilient, ubiquitous...)"
+                required
+                maxlength="100"
+                autofocus
+            >
+        </div>
+        <button type="submit" id="ai-submit-btn" class="ai-btn-submit">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Phân tích
+        </button>
+    </form>
+
+    <div class="quick-tags">
+        <span>Gợi ý nhanh:</span>
+        <span class="quick-chip" data-word="abandon">abandon</span>
+        <span class="quick-chip" data-word="resilient">resilient</span>
+        <span class="quick-chip" data-word="ubiquitous">ubiquitous</span>
+        <span class="quick-chip" data-word="diligent">diligent</span>
+        <span class="quick-chip" data-word="ephemeral">ephemeral</span>
+        <span class="quick-chip" data-word="paradigm">paradigm</span>
+    </div>
+</div>
+
+<!-- Loading State Card -->
+<div id="ai-loading-state" class="ai-loading-card">
+    <div class="ai-spinner"></div>
+    <p class="ai-loading-text">AI đang phân tích từ vựng...</p>
+    <p class="ai-loading-subtext">Đang trích xuất nghĩa, phát âm IPA, ví dụ và mẹo nhớ từ Gemini 3.6 Flash</p>
+</div>
+
+<!-- Error State Card -->
+<div id="ai-error-state" class="ai-error-card">
+    <div class="ai-error-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+    <h3 class="ai-error-title">Không thể phân tích từ</h3>
+    <p id="ai-error-msg" class="ai-error-msg">Đã xảy ra lỗi trong quá trình kết nối với AI.</p>
+    <button type="button" id="ai-retry-btn" class="ai-btn-retry"><i class="fa-solid fa-rotate-right"></i> Thử lại</button>
+</div>
+
+<!-- Empty State Card -->
+<div id="ai-empty-state" class="ai-empty-card">
+    <div class="ai-empty-icon"><i class="fa-solid fa-brain"></i></div>
+    <h3 style="margin: 0 0 8px 0; color: #333;">Sẵn sàng hỗ trợ học từ vựng</h3>
+    <p style="margin: 0; font-size: 0.95rem;">Gõ một từ ở ô tìm kiếm bên trên hoặc chọn các từ gợi ý để bắt đầu phân tích cùng AI.</p>
+</div>
+
+<!-- Result Container -->
+<div id="ai-result-container" class="ai-result-container">
+    
+    <div class="w3-card" style="padding: 30px;">
+        
+        <!-- Word Header -->
+        <div class="ai-word-header">
+            <div>
+                <div class="ai-word-title-group">
+                    <h2 id="res-word-term" class="ai-word-term">word</h2>
+                    <span id="res-word-pos" class="ai-word-pos">verb</span>
+                </div>
+                <div class="ai-word-ipa-group">
+                    <span id="res-word-ipa">/wɜːrd/</span>
+                    <button type="button" id="res-audio-btn" class="ai-audio-btn" title="Nghe phát âm">
+                        <i class="fa-solid fa-volume-high"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <button type="button" id="res-add-deck-btn" class="ai-btn-add-deck">
+                    <i class="fa-solid fa-plus"></i> Thêm vào danh sách từ vựng
+                </button>
+            </div>
+        </div>
+
+        <!-- Meaning Box -->
+        <div class="ai-meaning-box">
+            <p class="ai-meaning-label">Nghĩa tiếng Việt</p>
+            <p id="res-meaning-text" class="ai-meaning-text">Nghĩa của từ</p>
+        </div>
+
+        <!-- Examples Section -->
+        <div>
+            <h3 class="ai-section-heading">
+                <i class="fa-solid fa-quote-left" style="color: #04AA6D;"></i> Ví dụ câu thực tế
+            </h3>
+            <div id="res-examples-list" class="ai-examples-list">
+                <!-- Injected by JS -->
+            </div>
+        </div>
+
+        <!-- Info Grid (Synonyms, Antonyms, Collocations) -->
+        <div class="ai-info-grid">
+            
+            <div class="ai-tag-group">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.95rem; color: #1b5e20; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-equals"></i> Từ đồng nghĩa (Synonyms)
+                </h4>
+                <div id="res-synonyms-wrap" class="ai-tags-wrap">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <div class="ai-tag-group">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.95rem; color: #b71c1c; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-arrows-left-right"></i> Từ trái nghĩa (Antonyms)
+                </h4>
+                <div id="res-antonyms-wrap" class="ai-tags-wrap">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <div class="ai-tag-group">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.95rem; color: #0d47a1; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-link"></i> Cụm từ thường gặp (Collocations)
+                </h4>
+                <div id="res-collocations-wrap" class="ai-tags-wrap">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Memory Tip Box -->
+        <div id="ai-memory-tip-card" class="ai-memory-tip">
+            <i class="fa-solid fa-lightbulb"></i>
+            <div class="ai-memory-tip-content">
+                <h4>Mẹo ghi nhớ nhanh (Memory Tip)</h4>
+                <p id="res-memory-tip-text">Mẹo nhớ từ...</p>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Modal: Add to Topic Deck -->
+<div id="ai-add-modal" class="ai-modal-overlay">
+    <div class="ai-modal">
+        <div class="ai-modal-header">
+            <h3><i class="fa-solid fa-folder-plus" style="color: #04AA6D;"></i> Thêm từ vào danh mục học</h3>
+            <button type="button" id="ai-modal-close-btn" class="ai-modal-close">&times;</button>
+        </div>
+
+        <div class="ai-modal-body">
+            <div id="ai-modal-alert" class="ai-modal-alert"></div>
+
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label" for="ai-topic-select">Chọn danh mục (Deck):</label>
+                <select id="ai-topic-select" class="form-control">
+                    <!-- Loaded dynamically via /api/ai/topics -->
+                </select>
+            </div>
+
+            <div id="ai-new-topic-group" class="form-group" style="display: none; margin-bottom: 16px;">
+                <label class="form-label" for="ai-new-topic-input">Tên danh mục mới:</label>
+                <input 
+                    type="text" 
+                    id="ai-new-topic-input" 
+                    class="form-control" 
+                    placeholder="Ví dụ: IELTS Vocab, Từ vựng hàng ngày..."
+                    maxlength="100"
+                >
+            </div>
+        </div>
+
+        <div class="ai-modal-footer">
+            <button type="button" id="ai-modal-cancel-btn" class="btn" style="background: #e0e0e0; color: #333; padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Hủy</button>
+            <button type="button" id="ai-modal-submit-btn" class="btn" style="background: #04AA6D; color: white; padding: 10px 22px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Lưu từ</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/ai_vocabulary.js') }}"></script>
+{% endblock %}

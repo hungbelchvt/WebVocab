@@ -86,7 +86,7 @@ class WordProgress(db.Model):
     date_mastered = db.Column(db.DateTime, nullable=True)
 
     # Junction connections
-    user = db.relationship('User', backref=db.backref('word_progress_junction', lazy=True))
+    user = db.relationship('User', backref=db.backref('word_progress_junction', lazy=True, overlaps="all_word_progress,progress_owner"), overlaps="all_word_progress,progress_owner")
     word = db.relationship('Word', backref=db.backref('progress_entries', lazy=True))
 
     def __repr__(self):

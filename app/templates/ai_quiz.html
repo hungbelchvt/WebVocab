@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}AI Quiz Generator - Vocab App{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai_styles.css') }}">
+
+<div class="ai-header">
+    <h1>
+        <i class="fa-solid fa-graduation-cap" style="color: #ff9800;"></i> AI Quiz Generator
+        <span class="ai-badge" style="color: #ff9800; border-color: rgba(255, 152, 0, 0.3); background: #fff3e0;">Gemini 3.6 Flash</span>
+    </h1>
+    <p class="ai-subtitle">AI tự động phân tích lịch sử học, độ chính xác và từ vựng yếu của bạn để tạo ra bài trắc nghiệm cá nhân hóa.</p>
+</div>
+
+<!-- Setup Card -->
+<div id="ai-quiz-setup-card" class="ai-quiz-setup-card">
+    <h3 style="margin: 0 0 16px 0; color: #333; font-size: 1.25rem;">
+        <i class="fa-solid fa-sliders" style="color: #04AA6D;"></i> Thiết lập bài Quiz AI
+    </h3>
+
+    <div class="form-group" style="margin-bottom: 20px;">
+        <label class="form-label" for="ai-quiz-topic-select">Chọn danh mục từ vựng:</label>
+        <select id="ai-quiz-topic-select" class="form-control">
+            <option value="all">-- Tất cả từ vựng đang học --</option>
+        </select>
+        <small style="color: #777; display: block; margin-top: 6px;">AI sẽ ưu tiên các từ bạn đang cần ôn tập hoặc có tỷ lệ trả lời đúng thấp.</small>
+    </div>
+
+    <div class="form-group" style="margin-bottom: 26px;">
+        <label class="form-label">Số lượng câu hỏi:</label>
+        <div class="ai-quiz-count-group">
+            <button type="button" class="ai-count-btn active" data-count="5">5 câu</button>
+            <button type="button" class="ai-count-btn" data-count="10">10 câu</button>
+            <button type="button" class="ai-count-btn" data-count="15">15 câu</button>
+        </div>
+    </div>
+
+    <button type="button" id="ai-quiz-generate-btn" class="btn-block" style="background: #ff9800; margin-top: 0;">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Tạo bài Quiz AI cá nhân hóa
+    </button>
+</div>
+
+<!-- Loading State -->
+<div id="ai-quiz-loading-state" class="ai-loading-card" style="max-width: 700px; margin: 0 auto;">
+    <div class="ai-spinner" style="border-top-color: #ff9800;"></div>
+    <p class="ai-loading-text">AI đang tạo bài quiz cá nhân hóa...</p>
+    <p class="ai-loading-subtext">Đang trích xuất từ vựng ưu tiên và tạo câu hỏi ngữ cảnh đa dạng từ Gemini 3.6 Flash</p>
+</div>
+
+<!-- Error State -->
+<div id="ai-quiz-error-state" class="ai-error-card" style="max-width: 700px; margin: 0 auto;">
+    <div class="ai-error-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+    <h3 class="ai-error-title">Không thể tạo bài Quiz</h3>
+    <p id="ai-quiz-error-msg" class="ai-error-msg">Đã xảy ra lỗi khi kết nối với AI.</p>
+    <button type="button" id="ai-quiz-retry-btn" class="ai-btn-retry"><i class="fa-solid fa-arrow-left"></i> Quay lại thiết lập</button>
+</div>
+
+<!-- Quiz Runner Container -->
+<div id="ai-quiz-container" class="ai-quiz-container">
+    
+    <!-- Top Progress Bar -->
+    <div class="ai-quiz-header-bar">
+        <span id="ai-quiz-progress-text" style="font-weight: bold; color: #555;">Câu hỏi 1 / 5</span>
+        <div class="ai-quiz-progress-track">
+            <div id="ai-quiz-progress-fill" class="ai-quiz-progress-fill"></div>
+        </div>
+    </div>
+
+    <!-- Active Question Card -->
+    <div class="ai-quiz-question-card">
+        
+        <!-- Question Type Badge -->
+        <div>
+            <span id="ai-quiz-type-badge" class="ai-quiz-type-badge multiple_choice">Nghĩa của từ</span>
+        </div>
+
+        <!-- Question Prompt -->
+        <h2 id="ai-quiz-question-title" class="ai-quiz-question-title">Question title here</h2>
+
+        <!-- Options Container -->
+        <div id="ai-quiz-options" class="ai-quiz-options">
+            <!-- Dynamically rendered options -->
+        </div>
+
+        <!-- Explanation Card (Revealed after answer) -->
+        <div id="ai-quiz-explanation" class="ai-quiz-explanation">
+            <h4><i class="fa-solid fa-lightbulb" style="color: #f57f17;"></i> Giải thích chi tiết:</h4>
+            <p id="ai-quiz-explanation-text">Explanation text...</p>
+        </div>
+
+        <!-- Action Button (Next / Finish) -->
+        <div class="ai-quiz-actions">
+            <button type="button" id="ai-quiz-next-btn" class="ai-btn-quiz-next" style="display: none;">
+                Câu tiếp theo <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/ai_quiz.js') }}"></script>
+{% endblock %}

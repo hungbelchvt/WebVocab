@@ -135,7 +135,7 @@ def dashboard():
         # Check for topic_id instead of the relationship object
         if p.word and p.word.topic_id:
             # Fetch the actual Topic object manually
-            topic = Topic.query.get(p.word.topic_id)
+            topic = db.session.get(Topic, p.word.topic_id)
 
             if topic:
                 acc = p.times_correct / p.times_tested
@@ -316,7 +316,7 @@ def submit_quiz_batch():
     detailed_results = []
 
     for item in results:
-        progress = WordProgress.query.get(item['progress_id'])
+        progress = db.session.get(WordProgress, item['progress_id'])
         if progress and progress.user_id == current_user.id:
             progress.times_tested += 1
             if item['is_correct']:

@@ -2,9 +2,14 @@
 {% block title %}My Progress - Vocab App{% endblock %}
 
 {% block content %}
-<div class="deck-header">
-    <h1>My Learning Progress</h1>
-    <p style="color: #666; margin-top: 5px;">Track your vocabulary mastery and review your weakest terms.</p>
+<div class="deck-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div>
+        <h1>My Learning Progress</h1>
+        <p style="color: #666; margin-top: 5px;">Track your vocabulary mastery and review your weakest terms.</p>
+    </div>
+    <a href="{{ url_for('ai_ui.learning_analysis_page') }}" class="btn" style="background: #2196f3; color: white; border-radius: 8px; font-weight: bold; padding: 10px 20px; display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+        <i class="fa-solid fa-chart-pie"></i> Phân tích AI
+    </a>
 </div>
 
 <div class="learning-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 30px;">

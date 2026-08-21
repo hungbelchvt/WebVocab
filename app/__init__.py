@@ -8,7 +8,7 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -18,5 +18,13 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
 
     with app.app_context():
-        from app import routes
+        import sys, importlib
+        if 'app.routes' in sys.modules:
+            importlib.reload(sys.modules['app.routes'])
+        else:
+            from app import routes
+        from app.ai_routes import ai_bp, ai_ui_bp
+        app.register_blueprint(ai_bp)
+        app.register_blueprint(ai_ui_bp)
         return app
+
