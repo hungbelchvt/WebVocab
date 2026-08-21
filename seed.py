@@ -581,73 +581,72 @@ VOCAB_DATA = {
 }
 
 
-def seed_database(app=None, drop_existing=False):
+import time
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def seed_database(app=None, verbose=True):
     """
-    Seed database with standard users, 15 topics, and 525 vocabulary items.
-    Idempotent: will not duplicate existing topics or words.
+    Seed database with 15 system vocabulary topics and 525 system vocabulary items.
+    System topics and words are assigned user_id = None (public system data).
+
+    Idempotent and safe to run multiple times without duplicating data or altering user data.
+    Returns (topics_inserted, words_inserted).
     """
     if app is None:
         app = create_app()
 
     with app.app_context():
-        if drop_existing:
-            print("Dropping and recreating all database tables...")
-            db.drop_all()
-            db.create_all()
+        # Fast-path check: if 15 system topics already exist with >= 525 words, skip
+        total_topics_existing = Topic.query.filter(Topic.user_id.is_(None)).count()
+        total_words_existing = Word.query.filter(Word.user_id.is_(None)).count()
+
+        if total_topics_existing >= 15 and total_words_existing >= 525:
+            all_present = all(
+                Topic.query.filter(Topic.user_id.is_(None), func.lower(Topic.name) == func.lower(name)).first()
+                for name in VOCAB_DATA.keys()
+            )
+            if all_present:
+                msg = (f"[SEED] System vocabulary already present "
+                       f"({total_topics_existing} system topics, "
+                       f"{total_words_existing} system words). Skipping.")
+                if verbose:
+                    print(msg)
+                else:
+                    logger.info(msg)
+                return 0, 0
+
+        if verbose:
+            print("[SEED] Seeding system vocabulary topics and words...")
         else:
-            db.create_all()
+            logger.info("[SEED] Seeding system vocabulary topics and words...")
 
-
-        now = datetime.now(timezone.utc)
-
-        # 1. Create or retrieve standard seed users
-        users_config = [
-            {'username': 'admin', 'password': 'admin', 'is_admin': True},
-            {'username': 'testuser', 'password': 'password123', 'is_admin': False},
-            {'username': 'study_champ', 'password': 'password123', 'is_admin': False},
-            {'username': 'vocab_master', 'password': 'password123', 'is_admin': False}
-        ]
-
-        user_objects = {}
-        for u in users_config:
-            existing_user = User.query.filter_by(username=u['username']).first()
-            if not existing_user:
-                hashed = generate_password_hash(u['password'], method='pbkdf2:sha256')
-                new_user = User(username=u['username'], password_hash=hashed, is_admin=u['is_admin'])
-                db.session.add(new_user)
-                db.session.flush()
-                user_objects[u['username']] = new_user
-                print(f"Created user: {u['username']}")
-            else:
-                user_objects[u['username']] = existing_user
-
-        db.session.commit()
-
-        main_user = user_objects['testuser']
-        champ = user_objects['study_champ']
-        master = user_objects['vocab_master']
-
-        # 2. Seed Topics and Words
         total_topics_seeded = 0
         total_words_seeded = 0
 
-        all_word_objects = []
-
         for topic_name, words_list in VOCAB_DATA.items():
-            # Check if topic already exists
-            topic = Topic.query.filter(func.lower(Topic.name) == func.lower(topic_name)).first()
+            # Check or create system topic (user_id = None)
+            topic = Topic.query.filter(
+                Topic.user_id.is_(None),
+                func.lower(Topic.name) == func.lower(topic_name)
+            ).first()
             if not topic:
-                topic = Topic(name=topic_name, user_id=main_user.id)
+                topic = Topic(name=topic_name, user_id=None)
                 db.session.add(topic)
                 db.session.flush()
                 total_topics_seeded += 1
-                print(f"Created topic: '{topic_name}'")
-            else:
-                print(f"Topic already exists: '{topic_name}' (id={topic.id})")
+                if verbose:
+                    print(f"[SEED] Created system topic: '{topic_name}'")
+            elif verbose:
+                print(f"[SEED] System topic already exists: '{topic_name}' (id={topic.id})")
 
+            # Check or create system words in topic (user_id = None)
             for term, ipa, definition, example, synonyms, antonyms, difficulty in words_list:
                 existing_word = Word.query.filter(
                     Word.topic_id == topic.id,
+                    Word.user_id.is_(None),
                     func.lower(Word.term) == func.lower(term)
                 ).first()
 
@@ -661,74 +660,59 @@ def seed_database(app=None, drop_existing=False):
                         antonyms=antonyms,
                         difficulty=difficulty,
                         topic_id=topic.id,
-                        user_id=main_user.id
+                        user_id=None
                     )
                     db.session.add(new_word)
-                    all_word_objects.append(new_word)
                     total_words_seeded += 1
                 else:
-                    # Update fields if they were missing
+                    # Backfill missing enrichment fields without overwriting existing data
                     if not existing_word.ipa and ipa:
                         existing_word.ipa = ipa
                     if not existing_word.synonyms and synonyms:
                         existing_word.synonyms = synonyms
                     if not existing_word.antonyms and antonyms:
                         existing_word.antonyms = antonyms
-                    all_word_objects.append(existing_word)
+
 
         db.session.commit()
-        print(f"\nSeeding summary: Inserted {total_topics_seeded} new topics, {total_words_seeded} new words.")
+        summary_msg = (f"[SEED] Seeding complete: inserted {total_topics_seeded} new topics, "
+                       f"{total_words_seeded} new words.")
+        if verbose:
+            print(summary_msg)
+        else:
+            logger.info(summary_msg)
 
-        # 3. Seed initial learning progress if users have none
-        existing_progress_count = WordProgress.query.count()
-        if existing_progress_count == 0 and all_word_objects:
-            print("Seeding initial progress records for test users...")
-            # Query all words to have complete list with IDs
-            all_db_words = Word.query.all()
-            
-            sample_size = min(30, len(all_db_words))
-            for word in random.sample(all_db_words, sample_size):
-                progress = WordProgress(
-                    user_id=champ.id,
-                    word_id=word.id,
-                    times_tested=5,
-                    times_correct=5,
-                    is_mastered=True,
-                    date_mastered=now - timedelta(days=random.randint(1, 5)),
-                    next_review=now + timedelta(days=30)
-                )
-                db.session.add(progress)
-
-            for word in random.sample(all_db_words, min(20, len(all_db_words))):
-                progress = WordProgress(
-                    user_id=master.id,
-                    word_id=word.id,
-                    times_tested=4,
-                    times_correct=4,
-                    is_mastered=True,
-                    date_mastered=now - timedelta(days=random.randint(1, 3)),
-                    next_review=now + timedelta(days=30)
-                )
-                db.session.add(progress)
-
-            # Give main user a few due words
-            for word in all_db_words[:10]:
-                progress = WordProgress(
-                    user_id=main_user.id,
-                    word_id=word.id,
-                    times_tested=3,
-                    times_correct=2,
-                    next_review=now - timedelta(days=1)
-                )
-                db.session.add(progress)
-
-            db.session.commit()
-            print("Initial learning progress seeded successfully.")
-
-        print("\nDatabase seeding completed successfully.")
         return total_topics_seeded, total_words_seeded
 
 
+def auto_init_and_seed(app, max_retries=3, retry_delay=2):
+    """
+    Production-safe database initialization and idempotent auto-seeding with retry.
+    Called once during application startup.
+
+    Flow:
+        1. db.create_all() — ensures all tables exist
+        2. seed_database() — inserts missing system topics/words, skips if already seeded
+    """
+    for attempt in range(1, max_retries + 1):
+        try:
+            with app.app_context():
+                logger.info(f"[DB] Initializing database schema (attempt {attempt}/{max_retries})...")
+                db.create_all()
+                logger.info("[DB] Database schema ready.")
+
+                logger.info("[SEED] Checking system vocabulary...")
+                seed_database(app=app, verbose=False)
+                logger.info("[APP] WebVocab startup auto-seed complete.")
+                return True
+        except Exception as exc:
+            logger.warning(f"[DB] Initialization attempt {attempt} failed: {exc}")
+            if attempt < max_retries:
+                time.sleep(retry_delay)
+            else:
+                logger.error("[DB] Database initialization failed after all retries.", exc_info=True)
+                raise
+
+
 if __name__ == '__main__':
-    drop_flag = '--drop' in sys.argv or '--reset' in sys.argv
-    seed_database(drop_existing=drop_flag)
+    seed_database(verbose=True)

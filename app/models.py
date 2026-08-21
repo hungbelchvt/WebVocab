@@ -25,8 +25,8 @@ class User(db.Model, UserMixin):
 
 class Topic(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    # Creator ownership is kept for tracking/filtering, but content is shared [134-137]
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # Creator ownership: NULL indicates system/public topic
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     date_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -43,8 +43,8 @@ class Topic(db.Model):
 class Word(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=False)
-    # Creator ownership (optional, good practice)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # Creator ownership (optional, NULL for system/public words)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
     # Shared Vocabulary Details
     term = db.Column(db.String(100), nullable=False)

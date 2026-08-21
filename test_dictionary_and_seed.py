@@ -271,29 +271,45 @@ class TestDictionaryAndSeed(unittest.TestCase):
         self.assertFalse(data["success"])
 
     # =================================================================
-    # 3. Database Seeding & Idempotency Tests
+    # 3. Database Seeding, Idempotency & User Data Preservation Tests
     # =================================================================
 
     def test_database_seeder_execution_and_idempotency(self):
         """Verify database seeder populates topics and words without duplicates on repeat runs."""
         # First run: seeds fresh data using test app context
-        topics_first, words_first = seed_database(app=self.app, drop_existing=False)
+        topics_first, words_first = seed_database(app=self.app, verbose=False)
         self.assertGreaterEqual(Topic.query.count(), 15)
-        self.assertGreaterEqual(Word.query.count(), 500)
+        self.assertGreaterEqual(Word.query.count(), 525)
+        self.assertEqual(topics_first, 15)
+        self.assertEqual(words_first, 525)
 
         # Second run: must be idempotent and insert 0 new duplicate items
-        topics_second, words_second = seed_database(app=self.app, drop_existing=False)
+        topics_second, words_second = seed_database(app=self.app, verbose=False)
         self.assertEqual(topics_second, 0)
         self.assertEqual(words_second, 0)
 
-        # Verify key topics exist
+        # Verify key system topics exist and have user_id is None
         expected_topics = ["Daily Life", "Travel & Tourism", "Health & Medicine", "Programming & Software"]
         for t_name in expected_topics:
-            t = Topic.query.filter_by(name=t_name).first()
-            self.assertIsNotNone(t, f"Topic '{t_name}' should exist in database.")
-            self.assertGreaterEqual(len(t.words), 30)
+            t = Topic.query.filter_by(name=t_name, user_id=None).first()
+            self.assertIsNotNone(t, f"System Topic '{t_name}' should exist in database.")
+            self.assertEqual(len(t.words), 35)
 
+    def test_preservation_of_user_data(self):
+        """Verify database seeder does not delete or alter existing user topics or words."""
+        # Check initial user word exists before seeding
+        user_word = Word.query.filter_by(term='algorithm', user_id=self.user.id).first()
+        self.assertIsNotNone(user_word)
+
+        # Run database seeder
+        seed_database(app=self.app, verbose=False)
+
+        # Verify user word still exists intact
+        user_word_after = Word.query.filter_by(term='algorithm', user_id=self.user.id).first()
+        self.assertIsNotNone(user_word_after)
+        self.assertEqual(user_word_after.definition, 'A process or set of rules to be followed in calculations.')
 
 
 if __name__ == '__main__':
     unittest.main()
+

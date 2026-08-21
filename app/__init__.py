@@ -33,5 +33,9 @@ def create_app(config_class=Config):
         # Automatically create tables if they do not exist
         db.create_all()
 
+        # In production and normal runs, automatically seed system vocabulary on startup
+        if not app.config.get('TESTING', False):
+            from seed import auto_init_and_seed
+            auto_init_and_seed(app)
+
     return app
-

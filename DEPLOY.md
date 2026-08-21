@@ -64,36 +64,22 @@ Under the **Environment Variables** tab of your Render Web Service, add the foll
 
 ---
 
-## 3. Database Initialization & Seeding
+## 3. Automatic Database Initialization & Auto-Seeding (Render Free Ready)
 
-The application automatically provisions all PostgreSQL tables on startup. To populate the database with the initial curriculum of **15 topics** and **525 vocabulary items**:
+WebVocab is fully configured for **zero-touch deployment on Render Free**. You do NOT need to open a Render Shell or run manual commands:
 
-### Running the Seed Command
+### How It Works:
+1. **Automatic Schema Creation**: On application startup, WebVocab checks PostgreSQL and provisions all required tables (`db.create_all()`).
+2. **Automatic Idempotent Seeding**: The server automatically inspects the database. If system vocabulary is missing, it seeds the full curriculum of **15 topics** and **525 vocabulary items** (`35 words per topic`).
+3. **Subsequent Deployments**: On restarts and re-deployments, WebVocab detects that system vocabulary is already present and skips seeding in `<1ms`.
+4. **User Data Safety**: The auto-seeder **NEVER** drops tables, truncates data, resets users, or alters user-created topics, custom words, or `WordProgress` learning history.
+5. **No Per-Request Overhead**: Database initialization and auto-seeding execute strictly once during application startup, never on individual HTTP requests.
 
-#### Locally:
-```bash
-python seed.py
-```
+### Verifying Seed Data:
+Once the Web Service status changes to **Live** on Render:
+- Navigate to your deployed URL `/flashcards` or `/` — all 15 public topics and 525 flashcards will be available immediately.
+- Test the Free Dictionary lookup at `/api/dictionary/resilient`.
 
-#### On Render (via Shell):
-1. In the Render Dashboard, go to your Web Service.
-2. Open the **Shell** tab.
-3. Run:
-   ```bash
-   python seed.py
-   ```
-
-*(Note: The seed script is completely idempotent. Running it multiple times will safely update existing records without creating duplicates).*
-
-### Verifying Seed Data
-To verify that topics and vocabulary have been successfully inserted into PostgreSQL, you can run:
-```bash
-python -c "from app import create_app; from app.models import Topic, Word; app = create_app(); ctx = app.app_context(); ctx.push(); print(f'Total Topics: {Topic.query.count()}, Total Words: {Word.query.count()}')"
-```
-**Expected Output:**
-```text
-Total Topics: 15, Total Words: 525
-```
 
 ---
 
