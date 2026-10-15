@@ -140,3 +140,9 @@ deployment.xml
 
 # Project specific files (based on your image)
 vocab.db
+*.sqlite
+*.sqlite3
+*.wav
+*.mp3
+*.webm
+*.ogg

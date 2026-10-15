@@ -15,15 +15,29 @@ class Config:
         SECRET_KEY = 'dev-insecure-secret-key-change-in-production'
 
     # Database URL: Read from environment, or use local SQLite fallback
-    database_url = os.environ.get('DATABASE_URL', 'sqlite:///vocab.db')
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        database_url = database_url.strip()
+    if not database_url:
+        database_url = 'sqlite:///vocab.db'
 
-    # SQLAlchemy 1.4+ and 2.0+ require 'postgresql://' instead of legacy 'postgres://' (standard on Render)
-    if database_url and database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    # Normalize PostgreSQL URL schemes to ensure the installed psycopg2 driver is used:
+    # 1. Render legacy prefix 'postgres://' -> 'postgresql://'
+    # 2. Prevent ModuleNotFoundError for 'psycopg' (v3) when psycopg2-binary is installed:
+    #    Normalize 'postgresql+psycopg://' or 'postgres+psycopg://' -> 'postgresql://'
+    # 3. Handle 'postgres+psycopg2://' -> 'postgresql+psycopg2://'
+    # 4. Preserve existing 'postgresql://' and 'postgresql+psycopg2://'
+    if database_url.startswith("postgresql+psycopg://"):
+        database_url = "postgresql://" + database_url[len("postgresql+psycopg://"):]
+    elif database_url.startswith("postgres+psycopg://"):
+        database_url = "postgresql://" + database_url[len("postgres+psycopg://"):]
+    elif database_url.startswith("postgres+psycopg2://"):
+        database_url = "postgresql+psycopg2://" + database_url[len("postgres+psycopg2://"):]
+    elif database_url.startswith("postgres://"):
+        database_url = "postgresql://" + database_url[len("postgres://"):]
 
     is_postgres = bool(database_url and (
         database_url.startswith("postgresql://") or
-        database_url.startswith("postgres://") or
         database_url.startswith("postgresql+psycopg2://")
     ))
 

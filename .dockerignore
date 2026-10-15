@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# Virtual Environments
+.venv
+venv
+env
+ENV
+
+# Python Bytecode & Cache
+__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache
+.coverage
+htmlcov/
+.cache
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Local SQLite & Instance Data
+vocab.db
+*.sqlite
+*.sqlite3
+instance/
+
+# IDE & Editor files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Temporary & Test Audio Media
+*.wav
+*.mp3
+*.webm
+*.ogg
+*.flac
+*.m4a
+
+# Logs
+*.log
+logs/

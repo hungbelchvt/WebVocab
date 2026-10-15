@@ -65,6 +65,66 @@ class TestDeploymentConfiguration(unittest.TestCase):
                 'postgresql://user:pass@host:5432/dbname?sslmode=require'
             )
 
+    def test_database_url_normalization_psycopg_v3_prefix(self):
+        """Verify postgresql+psycopg:// is normalized to postgresql:// avoiding ModuleNotFoundError."""
+        with patch.dict(os.environ, {'DATABASE_URL': 'postgresql+psycopg://user:pass@host:5432/dbname'}, clear=False):
+            import importlib
+            import config
+            from sqlalchemy import create_engine
+            importlib.reload(config)
+            uri = config.Config.SQLALCHEMY_DATABASE_URI
+            self.assertEqual(
+                uri,
+                'postgresql://user:pass@host:5432/dbname?sslmode=require'
+            )
+            self.assertNotIn('psycopg://', uri)
+            # Verify SQLAlchemy dialect resolves to psycopg2 without raising ModuleNotFoundError: No module named 'psycopg'
+            engine = create_engine(uri)
+            self.assertEqual(engine.dialect.name, 'postgresql')
+            self.assertEqual(engine.dialect.driver, 'psycopg2')
+
+    def test_database_url_normalization_postgres_psycopg_prefix(self):
+        """Verify postgres+psycopg:// is normalized to postgresql://."""
+        with patch.dict(os.environ, {'DATABASE_URL': 'postgres+psycopg://user:pass@host:5432/dbname'}, clear=False):
+            import importlib
+            import config
+            importlib.reload(config)
+            self.assertEqual(
+                config.Config.SQLALCHEMY_DATABASE_URI,
+                'postgresql://user:pass@host:5432/dbname?sslmode=require'
+            )
+
+    def test_database_url_postgresql_psycopg2_preserved(self):
+        """Verify postgresql+psycopg2:// and postgres+psycopg2:// are normalized/preserved."""
+        with patch.dict(os.environ, {'DATABASE_URL': 'postgresql+psycopg2://user:pass@host:5432/dbname'}, clear=False):
+            import importlib
+            import config
+            importlib.reload(config)
+            self.assertEqual(
+                config.Config.SQLALCHEMY_DATABASE_URI,
+                'postgresql+psycopg2://user:pass@host:5432/dbname?sslmode=require'
+            )
+
+        with patch.dict(os.environ, {'DATABASE_URL': 'postgres+psycopg2://user:pass@host:5432/dbname'}, clear=False):
+            import importlib
+            import config
+            importlib.reload(config)
+            self.assertEqual(
+                config.Config.SQLALCHEMY_DATABASE_URI,
+                'postgresql+psycopg2://user:pass@host:5432/dbname?sslmode=require'
+            )
+
+    def test_database_url_ssl_parameters_preserved(self):
+        """Verify pre-existing SSL parameters and extra query options are preserved."""
+        url_with_ssl = 'postgresql://user:pass@host:5432/dbname?sslmode=verify-full&sslrootcert=/etc/ssl/cert.pem'
+        with patch.dict(os.environ, {'DATABASE_URL': url_with_ssl}, clear=False):
+            import importlib
+            import config
+            importlib.reload(config)
+            self.assertEqual(config.Config.SQLALCHEMY_DATABASE_URI, url_with_ssl)
+            # Ensure sslmode=require was not duplicated
+            self.assertEqual(config.Config.SQLALCHEMY_DATABASE_URI.count('sslmode='), 1)
+
     def test_postgresql_connection_pool_options(self):
         """Verify pool_pre_ping, pool_recycle, and SSL connect_args are configured for PostgreSQL."""
         with patch.dict(os.environ, {'DATABASE_URL': 'postgresql://user:pass@host:5432/dbname'}, clear=False):
@@ -79,7 +139,7 @@ class TestDeploymentConfiguration(unittest.TestCase):
             self.assertEqual(engine_opts.get("connect_args", {}).get("sslmode"), "require")
 
     def test_database_url_sqlite_fallback(self):
-        """Verify SQLite is used as local development fallback when DATABASE_URL is not set."""
+        """Verify SQLite is used as local development fallback when DATABASE_URL is not set or empty."""
         env_without_db = {k: v for k, v in os.environ.items() if k != 'DATABASE_URL'}
         with patch.dict(os.environ, env_without_db, clear=True):
             import importlib
@@ -93,6 +153,14 @@ class TestDeploymentConfiguration(unittest.TestCase):
             engine_opts = config.Config.SQLALCHEMY_ENGINE_OPTIONS
             self.assertTrue(engine_opts.get("pool_pre_ping"))
             self.assertNotIn("connect_args", engine_opts)
+
+        # Also test empty string and whitespace fallback
+        for empty_val in ('', '   '):
+            with patch.dict(os.environ, {'DATABASE_URL': empty_val}, clear=False):
+                import importlib
+                import config
+                importlib.reload(config)
+                self.assertEqual(config.Config.SQLALCHEMY_DATABASE_URI, 'sqlite:///vocab.db')
 
     def test_secret_key_required_in_production(self):
         """Verify SECRET_KEY is strictly required when RENDER or FLASK_ENV=production is set."""
