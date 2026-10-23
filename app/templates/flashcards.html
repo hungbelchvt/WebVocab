@@ -18,6 +18,82 @@
     {% endif %}
 </div>
 
+<!-- Daily Word Showcase Card -->
+{% if daily_word %}
+<div class="daily-word-card" style="margin-bottom: 25px;">
+    <div>
+        <div class="daily-word-header">
+            <span class="daily-word-tag"><i class="fa-solid fa-calendar-day"></i> Từ vựng hôm nay</span>
+            <span style="font-size: 0.85rem; color: #888;">{{ daily_word.date }}</span>
+        </div>
+
+        <div style="display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+            <h3 class="daily-word-term">{{ daily_word.term }}</h3>
+            {% if daily_word.ipa %}
+                <span class="daily-word-ipa">{{ daily_word.ipa }}</span>
+            {% endif %}
+            {% if daily_word.part_of_speech_vi %}
+                <span class="pos-badge">{{ daily_word.part_of_speech_vi }}</span>
+            {% elif daily_word.part_of_speech %}
+                <span class="pos-badge">{{ daily_word.part_of_speech }}</span>
+            {% endif %}
+
+            <button type="button" class="btn-audio-pronounce" onclick="playDailyWordAudio('{{ daily_word.audio_url }}', '{{ daily_word.term }}')" title="Nghe phát âm">
+                <i class="fa-solid fa-volume-high"></i> Nghe
+            </button>
+        </div>
+
+        <p class="daily-word-definition">{{ daily_word.definition }}</p>
+
+        {% if daily_word.example_sentence %}
+            <div class="daily-word-example">
+                "{{ daily_word.example_sentence }}"
+            </div>
+        {% endif %}
+
+        {% if daily_word.synonyms and daily_word.synonyms|length > 0 %}
+            <p style="font-size: 0.88rem; color: #666; margin: 4px 0 12px 0;">
+                <strong>Đồng nghĩa:</strong> <span style="color: #04AA6D;">{{ daily_word.synonyms|join(', ') }}</span>
+            </p>
+        {% endif %}
+    </div>
+
+    <div class="daily-word-footer">
+        <div>
+            {% if daily_word.topic_name %}
+                <span style="font-size: 0.85rem; color: #777;">
+                    <i class="fa-solid fa-folder-open"></i> Chủ đề: <strong>{{ daily_word.topic_name }}</strong>
+                </span>
+            {% endif %}
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            {% if current_user.is_authenticated %}
+                {% if daily_word.is_enrolled %}
+                    <span style="display: inline-flex; align-items: center; gap: 6px; background: #e8f5e9; color: #2e7d32; font-size: 0.88rem; font-weight: 600; padding: 8px 14px; border-radius: 6px;">
+                        <i class="fa-solid fa-circle-check"></i> Đã có trong lộ trình
+                    </span>
+                    <a href="{{ url_for('study') }}" class="btn" style="background: #04AA6D; color: white; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.88rem;">
+                        <i class="fa-solid fa-brain"></i> Ôn tập
+                    </a>
+                {% else %}
+                    <form action="{{ url_for('daily_word_learn') }}" method="POST" style="margin: 0;">
+                        <input type="hidden" name="word_id" value="{{ daily_word.id or '' }}">
+                        <button type="submit" class="btn" style="background: #04AA6D; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-plus"></i> Học từ này
+                        </button>
+                    </form>
+                {% endif %}
+            {% else %}
+                <a href="{{ url_for('login', next=url_for('flashcards')) }}" class="btn" style="background: #04AA6D; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 0.88rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập để học từ này
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Quick Dictionary Search Card -->
 <div class="w3-card" style="margin-bottom: 30px; border-left: 4px solid #04AA6D; padding: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -127,6 +203,28 @@ async function handleDictSearch(e) {
         btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Tra cứu';
     }
 }
+
+function playDailyWordAudio(audioUrl, term) {
+    if (audioUrl && audioUrl.trim()) {
+        const audio = new Audio(audioUrl);
+        audio.play().catch(function(e) {
+            speakTerm(term);
+        });
+    } else {
+        speakTerm(term);
+    }
+}
+
+function speakTerm(term) {
+    if ('speechSynthesis' in window && term) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(term);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+    }
+}
 </script>
 {% endblock %}
+
 

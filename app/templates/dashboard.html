@@ -23,6 +23,161 @@
     </div>
 </div>
 
+<!-- FEATURED SECTION: Daily Word & Weekly Learning Goal -->
+<div class="featured-grid">
+
+    <!-- 1. DAILY WORD CARD -->
+    <div class="daily-word-card">
+        <div>
+            <div class="daily-word-header">
+                <span class="daily-word-tag"><i class="fa-solid fa-calendar-day"></i> Từ vựng mỗi ngày</span>
+                <span style="font-size: 0.85rem; color: #888;">{{ daily_word.date }}</span>
+            </div>
+
+            <div style="display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                <h3 class="daily-word-term">{{ daily_word.term }}</h3>
+                {% if daily_word.ipa %}
+                    <span class="daily-word-ipa">{{ daily_word.ipa }}</span>
+                {% endif %}
+                {% if daily_word.part_of_speech_vi %}
+                    <span class="pos-badge">{{ daily_word.part_of_speech_vi }}</span>
+                {% elif daily_word.part_of_speech %}
+                    <span class="pos-badge">{{ daily_word.part_of_speech }}</span>
+                {% endif %}
+
+                <button type="button" class="btn-audio-pronounce" onclick="playDailyWordAudio('{{ daily_word.audio_url }}', '{{ daily_word.term }}')" title="Nghe phát âm">
+                    <i class="fa-solid fa-volume-high"></i> Nghe
+                </button>
+            </div>
+
+            <p class="daily-word-definition">{{ daily_word.definition }}</p>
+
+            {% if daily_word.example_sentence %}
+                <div class="daily-word-example">
+                    "{{ daily_word.example_sentence }}"
+                </div>
+            {% endif %}
+
+            {% if daily_word.synonyms and daily_word.synonyms|length > 0 %}
+                <p style="font-size: 0.88rem; color: #666; margin: 4px 0 12px 0;">
+                    <strong>Đồng nghĩa:</strong> <span style="color: #04AA6D;">{{ daily_word.synonyms|join(', ') }}</span>
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="daily-word-footer">
+            <div>
+                {% if daily_word.topic_name %}
+                    <span style="font-size: 0.85rem; color: #777;">
+                        <i class="fa-solid fa-folder-open"></i> Chủ đề: <strong>{{ daily_word.topic_name }}</strong>
+                    </span>
+                {% endif %}
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                {% if daily_word.is_enrolled %}
+                    <span style="display: inline-flex; align-items: center; gap: 6px; background: #e8f5e9; color: #2e7d32; font-size: 0.88rem; font-weight: 600; padding: 8px 14px; border-radius: 6px;">
+                        <i class="fa-solid fa-circle-check"></i> Đã có trong lộ trình
+                    </span>
+                    <a href="{{ url_for('study') }}" class="btn" style="background: #04AA6D; color: white; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.88rem;">
+                        <i class="fa-solid fa-brain"></i> Ôn tập
+                    </a>
+                {% else %}
+                    <form action="{{ url_for('daily_word_learn') }}" method="POST" style="margin: 0;">
+                        <input type="hidden" name="word_id" value="{{ daily_word.id or '' }}">
+                        <button type="submit" class="btn" style="background: #04AA6D; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-plus"></i> Học từ này
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. WEEKLY LEARNING GOAL CARD -->
+    <div class="weekly-goal-card">
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+                <span class="weekly-goal-tag"><i class="fa-solid fa-bullseye"></i> Mục tiêu hằng tuần</span>
+                <span style="font-size: 0.85rem; color: #888;">{{ weekly_goal.week_label }}</span>
+            </div>
+
+            {% if weekly_goal.has_goal %}
+                <!-- Goal Active State -->
+                <div class="goal-progress-container">
+                    <div class="goal-progress-header">
+                        <div>
+                            <span class="goal-metric-big">{{ weekly_goal.current_value }}</span>
+                            <span class="goal-metric-target">/ {{ weekly_goal.target_value }} {{ weekly_goal.unit }}</span>
+                        </div>
+                        <span class="goal-percentage-badge {% if not weekly_goal.is_completed %}incomplete{% endif %}">
+                            {{ weekly_goal.percentage }}%
+                        </span>
+                    </div>
+
+                    <div class="goal-bar-bg">
+                        <div class="goal-bar-fill {% if weekly_goal.is_completed %}completed{% endif %}" style="width: {{ weekly_goal.percentage }}%;"></div>
+                    </div>
+
+                    {% if weekly_goal.is_completed %}
+                        <div class="goal-celebration-banner">
+                            <i class="fa-solid fa-trophy" style="font-size: 1.5rem; color: #ffd700;"></i>
+                            <div>
+                                <strong>Xuất sắc! Bạn đã đạt mục tiêu tuần này! 🎉</strong>
+                                <div style="font-size: 0.84rem; font-weight: normal; margin-top: 2px;">Tiếp tục duy trì phong độ và ôn tập thêm nhé.</div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="goal-remaining-text">
+                            <i class="fa-solid fa-circle-info"></i> Còn <strong>{{ weekly_goal.remaining }} {{ weekly_goal.unit }}</strong> nữa để hoàn thành mục tiêu tuần.
+                        </p>
+                    {% endif %}
+                </div>
+            {% else %}
+                <!-- Goal Not Set Invitation State -->
+                <div style="padding: 10px 0 16px 0;">
+                    <h3 style="margin: 0 0 6px 0; color: #222; font-size: 1.2rem;">Chưa thiết lập mục tiêu tuần này</h3>
+                    <p style="color: #666; font-size: 0.92rem; margin: 0 0 12px 0;">
+                        Đặt mục tiêu học tập (số từ vựng mới hoặc số buổi học) để duy trì thói quen và theo dõi tiến độ mỗi ngày!
+                    </p>
+
+                    <div style="display: flex; gap: 15px; background: #f8faf9; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 0.88rem; color: #555;">
+                        <span><i class="fa-solid fa-chart-simple" style="color: #04AA6D;"></i> Hoạt động tuần này:</span>
+                        <span><strong>{{ weekly_goal.current_words }}</strong> từ mới</span>
+                        <span>•</span>
+                        <span><strong>{{ weekly_goal.current_sessions }}</strong> buổi học</span>
+                    </div>
+
+                    {% if weekly_goal.last_goal %}
+                        <div style="margin-top: 8px;">
+                            <form action="{{ url_for('set_weekly_goal_form') }}" method="POST" style="margin: 0; display: inline;">
+                                <input type="hidden" name="goal_type" value="{{ weekly_goal.last_goal.goal_type }}">
+                                <input type="hidden" name="target_value" value="{{ weekly_goal.last_goal.target_value }}">
+                                <button type="submit" class="btn" style="background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+                                    <i class="fa-solid fa-rotate-right"></i> Tiếp tục mục tiêu tuần trước: {{ weekly_goal.last_goal.target_value }} {{ weekly_goal.last_goal.type_label }}
+                                </button>
+                            </form>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; border-top: 1px solid #f0f0f0; padding-top: 14px; margin-top: auto;">
+            {% if weekly_goal.has_goal %}
+                <button type="button" class="btn" onclick="openGoalModal()" style="background: #f0f4f8; color: #334e68; border: 1px solid #d9e2ec; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-pen-to-square"></i> Chỉnh sửa mục tiêu
+                </button>
+            {% else %}
+                <button type="button" class="btn" onclick="openGoalModal()" style="background: #2196f3; color: white; border: none; padding: 9px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-plus"></i> Thiết lập mục tiêu ngay
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
 <h2 class="section-title">Góc học tập của tôi</h2>
 
 <div class="learning-grid">
@@ -174,7 +329,151 @@
 
 </div>
 
+<!-- WEEKLY GOAL SETUP / EDIT MODAL -->
+<div id="goal-modal" class="wg-modal-overlay" onclick="handleGoalModalOverlayClick(event)">
+    <div class="wg-modal-content" onclick="event.stopPropagation()">
+        <div class="wg-modal-header">
+            <h3><i class="fa-solid fa-bullseye" style="color: #2196f3;"></i> Thiết lập Mục tiêu học tập tuần</h3>
+            <button type="button" class="wg-modal-close" onclick="closeGoalModal()">&times;</button>
+        </div>
+
+        <form id="weekly-goal-form" action="{{ url_for('set_weekly_goal_form') }}" method="POST">
+            <div class="wg-modal-body">
+                <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">1. Chọn loại mục tiêu:</label>
+                <div class="goal-type-selector">
+                    <div id="type-option-words" class="goal-type-option {% if weekly_goal.goal_type == 'words' %}active{% endif %}" onclick="selectGoalType('words')">
+                        <i class="fa-solid fa-book-bookmark"></i>
+                        <strong>Số từ mới</strong>
+                        <div style="font-size: 0.8rem; color: #666; margin-top: 4px;">Học từ vựng mới lần đầu</div>
+                    </div>
+                    <div id="type-option-sessions" class="goal-type-option {% if weekly_goal.goal_type == 'sessions' %}active{% endif %}" onclick="selectGoalType('sessions')">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                        <strong>Số buổi học</strong>
+                        <div style="font-size: 0.8rem; color: #666; margin-top: 4px;">Phiên Quiz / Thẻ thông minh</div>
+                    </div>
+                </div>
+                <input type="hidden" name="goal_type" id="input-goal-type" value="{{ weekly_goal.goal_type }}">
+
+                <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">2. Chọn số lượng mục tiêu trong tuần:</label>
+                
+                <!-- Words presets -->
+                <div id="presets-words" class="preset-chips-grid" style="display: {% if weekly_goal.goal_type == 'words' %}flex{% else %}none{% endif %};">
+                    <button type="button" class="preset-chip" onclick="selectPreset(10)">10 từ</button>
+                    <button type="button" class="preset-chip" onclick="selectPreset(20)">20 từ</button>
+                    <button type="button" class="preset-chip" onclick="selectPreset(35)">35 từ</button>
+                    <button type="button" class="preset-chip" onclick="selectPreset(50)">50 từ</button>
+                </div>
+
+                <!-- Sessions presets -->
+                <div id="presets-sessions" class="preset-chips-grid" style="display: {% if weekly_goal.goal_type == 'sessions' %}flex{% else %}none{% endif %};">
+                    <button type="button" class="preset-chip" onclick="selectPreset(3)">3 buổi</button>
+                    <button type="button" class="preset-chip" onclick="selectPreset(5)">5 buổi</button>
+                    <button type="button" class="preset-chip" onclick="selectPreset(7)">7 buổi</button>
+                    <button type="button" class="preset-chip" onclick="selectPreset(10)">10 buổi</button>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <label for="custom-target-input" style="font-size: 0.88rem; color: #555; display: block; margin-bottom: 4px;">Hoặc nhập số lượng tùy chỉnh:</label>
+                    <input type="number" id="custom-target-input" name="target_value" class="form-control"
+                           min="1" max="500" value="{{ weekly_goal.target_value or 20 }}"
+                           style="width: 100%; padding: 10px 14px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;" required>
+                </div>
+
+                <p style="font-size: 0.82rem; color: #888; margin: 12px 0 0 0;">
+                    <i class="fa-solid fa-shield-halved"></i> Mục tiêu được tính từ Thứ Hai đến Chủ Nhật theo giờ Việt Nam và có thể điều chỉnh bất kỳ lúc nào.
+                </p>
+            </div>
+
+            <div style="padding: 16px 24px; background: #f8faf9; border-top: 1px solid #e8e8e8; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn" onclick="closeGoalModal()" style="background: #e0e0e0; color: #333; border: none; padding: 9px 18px; border-radius: 6px; cursor: pointer; font-weight: 600;">Hủy</button>
+                <button type="submit" class="btn" style="background: #04AA6D; color: white; border: none; padding: 9px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;">Lưu mục tiêu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+    function playDailyWordAudio(audioUrl, term) {
+        if (audioUrl && audioUrl.trim()) {
+            const audio = new Audio(audioUrl);
+            audio.play().catch(function(e) {
+                speakTerm(term);
+            });
+        } else {
+            speakTerm(term);
+        }
+    }
+
+    function speakTerm(term) {
+        if ('speechSynthesis' in window && term) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(term);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    function openGoalModal() {
+        const modal = document.getElementById('goal-modal');
+        if (modal) modal.classList.add('active');
+    }
+
+    function closeGoalModal() {
+        const modal = document.getElementById('goal-modal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    function handleGoalModalOverlayClick(e) {
+        if (e.target && e.target.id === 'goal-modal') {
+            closeGoalModal();
+        }
+    }
+
+    function selectGoalType(type) {
+        const typeInput = document.getElementById('input-goal-type');
+        const optWords = document.getElementById('type-option-words');
+        const optSessions = document.getElementById('type-option-sessions');
+        const presetsWords = document.getElementById('presets-words');
+        const presetsSessions = document.getElementById('presets-sessions');
+        const targetInput = document.getElementById('custom-target-input');
+
+        if (typeInput) typeInput.value = type;
+
+        if (type === 'words') {
+            optWords.classList.add('active');
+            optSessions.classList.remove('active');
+            presetsWords.style.display = 'flex';
+            presetsSessions.style.display = 'none';
+            if (targetInput && (parseInt(targetInput.value) < 10 || parseInt(targetInput.value) > 100)) {
+                targetInput.value = 20;
+            }
+            targetInput.max = 500;
+        } else {
+            optSessions.classList.add('active');
+            optWords.classList.remove('active');
+            presetsSessions.style.display = 'flex';
+            presetsWords.style.display = 'none';
+            if (targetInput && parseInt(targetInput.value) > 30) {
+                targetInput.value = 5;
+            }
+            targetInput.max = 100;
+        }
+    }
+
+    function selectPreset(val) {
+        const input = document.getElementById('custom-target-input');
+        if (input) input.value = val;
+        
+        document.querySelectorAll('.preset-chip').forEach(function(chip) {
+            if (parseInt(chip.innerText) === val) {
+                chip.classList.add('active');
+            } else {
+                chip.classList.remove('active');
+            }
+        });
+    }
+
     function switchLeaderboard(type) {
         const streakBtn = document.getElementById('tab-streak-btn');
         const expBtn = document.getElementById('tab-exp-btn');
@@ -199,4 +498,5 @@
     }
 </script>
 {% endblock %}
+
 

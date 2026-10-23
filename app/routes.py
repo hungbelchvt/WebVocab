@@ -7,7 +7,7 @@ from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.forms import RegistrationForm, LoginForm
 from app.forms import TopicForm, WordForm
-from app.models import db, User, Topic, Word, WordProgress, SmartStudyReview, QuizAttempt
+from app.models import db, User, Topic, Word, WordProgress, SmartStudyReview, QuizAttempt, WeeklyGoal
 from sqlalchemy import func
 from datetime import datetime, timezone
 from functools import wraps
@@ -21,6 +21,18 @@ from app.services.dictionary_service import (
     DictionaryNotFoundError,
     DictionaryTimeoutError,
     DictionaryAPIError
+)
+from app.services.daily_word_service import (
+    get_daily_word,
+    get_daily_word_raw,
+    get_today_vn_date_str
+)
+from app.services.weekly_goal_service import (
+    get_week_bounds,
+    get_user_weekly_goal,
+    get_last_set_goal,
+    set_or_update_weekly_goal,
+    get_weekly_goal_progress
 )
 
 
@@ -177,6 +189,12 @@ def dashboard():
                 lowest_acc = avg
                 weakest_topic = {'id': t_id, 'name': data['name']}
 
+    # 6. Daily Word
+    daily_word = get_daily_word(user_id=current_user.id)
+
+    # 7. Weekly Learning Goal
+    weekly_goal = get_weekly_goal_progress(user_id=current_user.id)
+
     return render_template('dashboard.html',
                            words_due=words_due,
                            total_learning=total_learning,
@@ -187,7 +205,9 @@ def dashboard():
                            user_streak_rank=user_streak_rank,
                            user_exp_rank=user_exp_rank,
                            user_streak_val=user_streak_val,
-                           weakest_topic=weakest_topic)
+                           weakest_topic=weakest_topic,
+                           daily_word=daily_word,
+                           weekly_goal=weekly_goal)
 
 
 @app.route('/api/leaderboard/streak', methods=['GET'])
@@ -472,8 +492,10 @@ def submit_quiz_batch():
 @app.route('/flashcards')
 def flashcards():
     all_topics = Topic.query.all()
+    user_id = current_user.id if current_user.is_authenticated else None
+    daily_word = get_daily_word(user_id=user_id)
 
-    return render_template('flashcards.html', topics=all_topics)
+    return render_template('flashcards.html', topics=all_topics, daily_word=daily_word)
 
 
 @app.route('/flashcards/<int:topic_id>')
@@ -626,13 +648,16 @@ def progress():
             index = last_7_dates.index(word_date)
             chart_data[index] += 1
 
+    weekly_goal = get_weekly_goal_progress(user_id=current_user.id)
+
     return render_template('progress.html',
                            weak_words=actual_weak_words,
                            mastered_count=mastered_count,
                            learning_count=learning_count,
                            new_count=new_count,
                            chart_labels=chart_labels,
-                           chart_data=chart_data)
+                           chart_data=chart_data,
+                           weekly_goal=weekly_goal)
 
 
 @app.route('/enroll/<int:topic_id>', methods=['POST'])
@@ -903,4 +928,175 @@ def api_dictionary_lookup(word):
             "found": False,
             "error": "Đã xảy ra lỗi không xác định khi tra cứu từ điển."
         }), 500
+
+
+# =====================================================================
+# DAILY WORD & WEEKLY LEARNING GOAL ENDPOINTS
+# =====================================================================
+
+@app.route('/api/daily-word', methods=['GET'])
+def api_daily_word():
+    """
+    Returns today's featured Daily Word in JSON format.
+    Includes user enrollment status if user is authenticated.
+    Does NOT automatically enroll the user.
+    """
+    user_id = current_user.id if current_user.is_authenticated else None
+    date_str = request.args.get('date')
+    word_data = get_daily_word(date_str=date_str, user_id=user_id)
+    return jsonify({
+        "success": True,
+        "daily_word": word_data
+    }), 200
+
+
+@app.route('/daily-word/learn', methods=['POST'])
+def daily_word_learn():
+    """
+    Action to enroll the user into studying the current daily word.
+    Requires authentication; redirects unauthenticated visitors to login.
+    Does not duplicate enrollment if already enrolled.
+    """
+    if not current_user.is_authenticated:
+        flash("Vui lòng đăng nhập để lưu từ vựng vào lộ trình học của bạn.", "warning")
+        return redirect(url_for('login', next=request.referrer or url_for('dashboard')))
+
+    # Extract word_id from form or json payload
+    payload = request.get_json(silent=True) or {}
+    word_id = request.form.get('word_id') or payload.get('word_id')
+
+    if not word_id:
+        daily = get_daily_word(user_id=current_user.id)
+        word_id = daily.get('id')
+
+    if not word_id:
+        if request.is_json:
+            return jsonify({"success": False, "error": "Không tìm thấy từ vựng này trong hệ thống."}), 404
+        flash("Không tìm thấy từ vựng này trong hệ thống.", "danger")
+        return redirect(url_for('dashboard'))
+
+    try:
+        word_id = int(word_id)
+    except (ValueError, TypeError):
+        if request.is_json:
+            return jsonify({"success": False, "error": "Mã từ vựng không hợp lệ."}), 400
+        flash("Mã từ vựng không hợp lệ.", "danger")
+        return redirect(url_for('dashboard'))
+
+    target_word = db.session.get(Word, word_id)
+    if not target_word:
+        if request.is_json:
+            return jsonify({"success": False, "error": "Từ vựng không tồn tại trong hệ thống."}), 404
+        flash("Từ vựng không tồn tại trong hệ thống.", "danger")
+        return redirect(url_for('dashboard'))
+
+    existing_progress = WordProgress.query.filter_by(
+        user_id=current_user.id,
+        word_id=target_word.id
+    ).first()
+
+    if existing_progress:
+        msg = f'Từ "{target_word.term}" đã có trong danh sách học của bạn!'
+        category = 'info'
+    else:
+        new_progress = WordProgress(user_id=current_user.id, word_id=target_word.id)
+        db.session.add(new_progress)
+        db.session.commit()
+        msg = f'Đã thêm thành công từ "{target_word.term}" vào lộ trình học của bạn! Bạn có thể bắt đầu ôn tập trong Học thông minh.'
+        category = 'success'
+
+    flash(msg, category)
+
+    if request.is_json:
+        return jsonify({
+            "success": True,
+            "message": msg,
+            "word_id": target_word.id,
+            "is_enrolled": True
+        }), 200
+
+    next_url = request.form.get('next') or request.referrer or url_for('dashboard')
+    return redirect(next_url)
+
+
+@app.route('/api/weekly-goal', methods=['GET'])
+@login_required
+def api_get_weekly_goal():
+    """Returns the current user's weekly learning goal status and progress."""
+    progress_data = get_weekly_goal_progress(user_id=current_user.id)
+    return jsonify({
+        "success": True,
+        "data": progress_data
+    }), 200
+
+
+@app.route('/api/weekly-goal', methods=['POST'])
+@login_required
+def api_set_weekly_goal():
+    """
+    Sets or updates the current user's weekly learning goal via JSON API.
+    Guarantees user isolation (cannot modify another user's goal).
+    """
+    data = request.get_json(silent=True) or {}
+    goal_type = data.get('goal_type')
+    target_value = data.get('target_value')
+
+    bounds = get_week_bounds()
+    year = bounds['year']
+    week_number = bounds['week_number']
+
+    try:
+        set_or_update_weekly_goal(
+            user_id=current_user.id,
+            year=year,
+            week_number=week_number,
+            goal_type=goal_type,
+            target_value=target_value
+        )
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+
+    progress_data = get_weekly_goal_progress(user_id=current_user.id)
+    return jsonify({
+        "success": True,
+        "message": "Cập nhật mục tiêu học tập tuần thành công!",
+        "data": progress_data
+    }), 200
+
+
+@app.route('/weekly-goal/set', methods=['POST'])
+@login_required
+def set_weekly_goal_form():
+    """
+    Sets or updates the weekly learning goal via standard HTML form POST.
+    """
+    goal_type = request.form.get('goal_type', 'words')
+    target_value = request.form.get('target_value')
+
+    # If user selected custom option, retrieve custom input
+    custom_val = request.form.get('custom_target_value')
+    if target_value == 'custom' and custom_val:
+        target_value = custom_val
+
+    bounds = get_week_bounds()
+    year = bounds['year']
+    week_number = bounds['week_number']
+
+    try:
+        set_or_update_weekly_goal(
+            user_id=current_user.id,
+            year=year,
+            week_number=week_number,
+            goal_type=goal_type,
+            target_value=target_value
+        )
+        flash("Đã cập nhật mục tiêu học tập tuần thành công!", "success")
+    except ValueError as e:
+        flash(f"Không thể lưu mục tiêu: {str(e)}", "danger")
+
+    next_url = request.form.get('next') or request.referrer or url_for('dashboard')
+    return redirect(next_url)
 

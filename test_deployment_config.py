@@ -16,7 +16,7 @@ from sqlalchemy.schema import CreateTable
 from sqlalchemy.dialects import postgresql
 
 from app import create_app
-from app.models import db, User, Topic, Word, WordProgress
+from app.models import db, User, Topic, Word, WordProgress, WeeklyGoal
 from config import Config
 
 
@@ -179,7 +179,7 @@ class TestDeploymentConfiguration(unittest.TestCase):
     def test_postgresql_ddl_compilation_all_models(self):
         """Verify all SQLAlchemy models compile valid PostgreSQL DDL statements."""
         dialect = postgresql.dialect()
-        models = [User, Topic, Word, WordProgress]
+        models = [User, Topic, Word, WordProgress, WeeklyGoal]
 
         for model in models:
             ddl = str(CreateTable(model.__table__).compile(dialect=dialect))

@@ -21,9 +21,10 @@ class User(db.Model, UserMixin):
     # Relationship to private progress entries
     all_word_progress = db.relationship('WordProgress', backref='progress_owner', lazy=True, cascade='all, delete-orphan')
 
-    # Relationship to Smart Study reviews and Quiz attempts
+    # Relationship to Smart Study reviews, Quiz attempts, and Weekly goals
     smart_study_reviews = db.relationship('SmartStudyReview', backref='user', lazy=True, cascade='all, delete-orphan')
     quiz_attempts = db.relationship('QuizAttempt', backref='user', lazy=True, cascade='all, delete-orphan')
+    weekly_goals = db.relationship('WeeklyGoal', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -142,5 +143,30 @@ class QuizAttempt(db.Model):
 
     def __repr__(self):
         return f'<QuizAttempt user={self.user_id} word={self.word_id} correct={self.is_correct}>'
+
+
+class WeeklyGoal(db.Model):
+    """
+    Weekly learning goal set by each user.
+    Tracks goal type ('words' or 'sessions') and target value for a specific ISO week (Monday-Sunday).
+    Preserves historical goals across weeks.
+    """
+    __tablename__ = 'weekly_goal'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False, index=True)
+    week_number = db.Column(db.Integer, nullable=False, index=True)
+    goal_type = db.Column(db.String(20), nullable=False, default='words')  # 'words' or 'sessions'
+    target_value = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'year', 'week_number', name='uq_user_weekly_goal'),
+    )
+
+    def __repr__(self):
+        return f'<WeeklyGoal user={self.user_id} {self.year}-W{self.week_number} {self.goal_type}={self.target_value}>'
 
 

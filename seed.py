@@ -631,6 +631,23 @@ def ensure_schema_compatibility(app=None):
                     conn.rollback()
                     logger.warning(f"[DB] Schema compatibility error (transaction rolled back): {exc}")
                     raise
+        elif dialect_name == 'sqlite':
+            logger.info("[DB] Checking SQLite schema compatibility...")
+            with engine.connect() as conn:
+                try:
+                    inspector = inspect(conn)
+                    table_names = inspector.get_table_names()
+
+                    if 'user' in table_names:
+                        columns = [col['name'] for col in inspector.get_columns('user')]
+                        if 'longest_streak' not in columns:
+                            conn.execute(text('ALTER TABLE "user" ADD COLUMN longest_streak INTEGER DEFAULT 0;'))
+                            conn.execute(text('UPDATE "user" SET longest_streak = COALESCE(current_streak, 0) WHERE longest_streak IS NULL OR longest_streak = 0;'))
+                            logger.info("[DB] Added 'longest_streak' column to SQLite 'user' table.")
+                    conn.commit()
+                except Exception as exc:
+                    conn.rollback()
+                    logger.warning(f"[DB] SQLite schema compatibility error: {exc}")
 
 
 

@@ -36,6 +36,51 @@
     </div>
 </div>
 
+<!-- Weekly Learning Goal Banner on Progress Page -->
+{% if weekly_goal %}
+<div class="w3-card" style="margin-top: 25px; border-left: 5px solid #2196f3; padding: 20px 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="weekly-goal-tag"><i class="fa-solid fa-bullseye"></i> Mục tiêu tuần</span>
+            <strong style="color: #333; font-size: 1.05rem;">{{ weekly_goal.week_label }}</strong>
+        </div>
+        <div>
+            {% if weekly_goal.has_goal %}
+                <span class="goal-percentage-badge {% if not weekly_goal.is_completed %}incomplete{% endif %}">
+                    {{ weekly_goal.percentage }}% hoàn thành
+                </span>
+            {% else %}
+                <a href="{{ url_for('dashboard') }}" class="btn" style="background: #2196f3; color: white; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: bold;">
+                    <i class="fa-solid fa-plus"></i> Thiết lập mục tiêu tại Bảng điều khiển
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if weekly_goal.has_goal %}
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+            <span style="font-size: 1.3rem; font-weight: bold; color: #111;">
+                {{ weekly_goal.current_value }} <span style="font-size: 1rem; color: #666; font-weight: normal;">/ {{ weekly_goal.target_value }} {{ weekly_goal.unit }}</span>
+            </span>
+            <span style="font-size: 0.88rem; color: #666;">
+                {% if weekly_goal.is_completed %}
+                    <span style="color: #2e7d32; font-weight: bold;"><i class="fa-solid fa-circle-check"></i> Đã hoàn thành mục tiêu tuần!</span>
+                {% else %}
+                    Còn {{ weekly_goal.remaining }} {{ weekly_goal.unit }} nữa
+                {% endif %}
+            </span>
+        </div>
+        <div class="goal-bar-bg" style="height: 10px;">
+            <div class="goal-bar-fill {% if weekly_goal.is_completed %}completed{% endif %}" style="width: {{ weekly_goal.percentage }}%;"></div>
+        </div>
+    {% else %}
+        <p style="color: #666; margin: 4px 0 0 0; font-size: 0.92rem;">
+            Bạn chưa đặt mục tiêu cho tuần này. Hiện tại bạn đã học <strong>{{ weekly_goal.current_words }} từ mới</strong> và hoàn thành <strong>{{ weekly_goal.current_sessions }} buổi học</strong> trong tuần này.
+        </p>
+    {% endif %}
+</div>
+{% endif %}
+
 <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 30px; margin-top: 30px;">
     
     <div class="w3-card" style="padding: 30px;">
